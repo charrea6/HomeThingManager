@@ -21,15 +21,21 @@ class DevicePageHandler(RequestHandler):
         if device is None:
             self.send_error(404)
             return
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=[e.event_time for e in device.memory_free_log],
-                                 y=[e.bytes_free for e in device.memory_free_log],
-                                 name="Free Memory"))
-        fig.add_trace(go.Scatter(x=[e.event_time for e in device.min_memory_log],
-                                 y=[e.bytes_free for e in device.min_memory_log],
-                                 name="Minimum Free Memory"))
+        if device.memory_free_log:
+            fig = go.Figure()
 
-        memory_free_div = plotly.io.to_html(fig, include_plotlyjs='cdn', include_mathjax='cdn', full_html=False)
+            fig.add_trace(go.Scatter(x=[e.event_time for e in device.memory_free_log],
+                                     y=[e.bytes_free for e in device.memory_free_log],
+                                     name="Free Memory"))
+            if device.min_memory_log:
+                fig.add_trace(go.Scatter(x=[e.event_time for e in device.min_memory_log],
+                                     y=[e.bytes_free for e in device.min_memory_log],
+                                     name="Minimum Free Memory"))
+
+            memory_free_div = plotly.io.to_html(fig, include_plotlyjs='cdn', include_mathjax='cdn', full_html=False)
+        else:
+            memory_free_div = '<i>No memory statistics</i>'
+
         self.render("device.html", device=device, memory_free_div=memory_free_div)
 
 

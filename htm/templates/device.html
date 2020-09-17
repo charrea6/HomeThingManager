@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Home Thing Manager - {{ device.uuid }}{% end %}
 {% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">Home</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ device.uuid }}</li>
+  </ol>
+</nav>
 <h1>Details</h1>
 <table class="table">
     <tbody>
@@ -18,7 +24,7 @@
         </tr>
         <tr>
             <th>IP Address</th>
-            <td>{{ device.device.ip }}</td>
+            <td><a href="http://{{ device.device.ip }}/">{{ device.device.ip }}</a></td>
         </tr>
         <tr>
             <th>Uptime</th>
@@ -48,19 +54,6 @@
     </tbody>
 </table>
 <h2>Memory</h2>
-<table class="table">
-    <thead>
-    <tr><th>Date/Time</th><th>Uptime</th></tr>
-    </thead>
-    <tbody>
-    {% for event in device.memory_free_log %}
-        <tr>
-            <td>{{ event.event_time }}</td>
-            <td>{{ event.bytes_free }}</td>
-        </tr>
-    {% end %}
-    </tbody>
-</table>
 {% autoescape None %}
 {{ memory_free_div }}
 {% end %}
