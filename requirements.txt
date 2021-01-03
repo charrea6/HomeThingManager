@@ -1,4 +1,7 @@
 tornado
 aio-mqtt
+asyncio-mqtt
 humanize
 plotly
+cbor2
+parsimonious

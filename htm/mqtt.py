@@ -3,6 +3,8 @@ import logging
 from urllib.parse import urlparse
 
 import aio_mqtt
+import asyncio_mqtt
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +15,12 @@ class MQTTHandler:
         if self.url_details.scheme not in ('mqtt', 'mqtts'):
             raise RuntimeError('Unsupported URL for MQTT "%s"' % url)
         self.db = db
+        self.task = None
         self._loop = asyncio.get_event_loop()
         self._reconnection_interval = 10
-        self._client = aio_mqtt.Client(loop=self._loop)
-        self.task = None
 
     def connect(self):
+        logger.info("Creating task...")
         self.task = self._loop.create_task(self.process())
 
     def _get_connection_details(self):
@@ -33,6 +35,15 @@ class MQTTHandler:
         if self.url_details.password is not None:
             kwargs['password'] = self.url_details.password
         return host, kwargs
+
+    async def send_message(self, topic, message):
+        raise NotImplementedError('send_message needs to be implemented by subclass')
+
+
+class AIOMqttHandler(MQTTHandler):
+    def __init__(self, url: str, db):
+        super().__init__(url, db)
+        self._client = aio_mqtt.Client(loop=self._loop)
 
     async def process(self):
         while True:
@@ -75,6 +86,35 @@ class MQTTHandler:
         uuid = topic_elements[1]
         self.db.update_device(uuid, topic_elements[2:], message.payload.decode())
 
+    async def send_message(self, topic, message):
+        await self._client.publish(aio_mqtt.PublishableMessage(topic, message))
+
+
+class AsyncioMqttHandler(MQTTHandler):
+    async def process(self):
+        logger.info("Starting...")
+        host, kwargs = self._get_connection_details()
+        async with asyncio_mqtt.Client(host, **kwargs) as client:
+            self.client = client
+            logger.info("Connected")
+            async with client.filtered_messages("homething/#") as messages:
+                logger.info("About to subscribe..")
+                await client.subscribe("homething/#")
+                logger.info("Subscribed.")
+                async for message in messages:
+                    try:
+                        self.process_message(message)
+                    except:
+                        logger.error("Processing message failed!", exc_info=True)
+
+    def process_message(self, message):
+        topic_elements = message.topic.split('/')
+        uuid = topic_elements[1]
+        self.db.update_device(uuid, topic_elements[2:], message.payload)
+
+    async def send_message(self, topic, message):
+        await self.client.publish(topic, message)
+
 
 def get_handler(url, db):
-    return MQTTHandler(url, db)
+    return AsyncioMqttHandler(url, db)

@@ -1,3 +1,6 @@
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s : %(message)s")
+
 import tornado.ioloop
 import argparse
 from htm.db import Database
@@ -17,7 +20,7 @@ if __name__ == '__main__':
     mqtt_handler = mqtt.get_handler(args.mqtt, db)
     mqtt_handler.connect()
 
-    web_server = web.get_server(db)
+    web_server = web.get_server(db, mqtt_handler)
     web_server.listen(args.port, args.ip)
 
     tornado.ioloop.IOLoop.current().start()

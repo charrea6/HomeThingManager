@@ -2,7 +2,8 @@ from collections import defaultdict
 import time
 import datetime
 import humanize
-
+import cbor2
+from homething.decode import decode as decode_profile
 
 class AttributeAccessDictionary(dict):
     def __getattr__(self, item):
@@ -38,31 +39,42 @@ class Device:
         self.reboots = []
         self.memory_free_log = []
         self.min_memory_log = []
+        self.profile = ''
 
     def update_property(self, prop_path, value):
         if prop_path[0] == 'device':
             if prop_path[1] == 'uptime':
-                new_uptime = int(value)
+                new_uptime = int(value.decode())
                 if new_uptime <= self.last_uptime:
                     self.reboots.append(RebootEvent(self.last_uptime, new_uptime))
                 self.last_uptime = new_uptime
                 self.last_uptime_update = time.time()
             elif prop_path[1] == 'memFree':
-                mem_free = int(value)
+                mem_free = int(value.decode())
                 self.memory_free_log.append(MemoryEvent(mem_free))
                 if len(self.memory_free_log) > Device.MAX_EVENTS:
                     self.memory_free_log = self.memory_free_log[len(self.memory_free_log) - Device.MAX_EVENTS:]
 
             elif prop_path[1] == 'memLow':
-                mem_free = int(value)
+                mem_free = int(value.decode())
                 self.min_memory_log.append(MemoryEvent(mem_free))
                 if len(self.min_memory_log) > Device.MAX_EVENTS:
                     self.min_memory_log = self.min_memory_log[len(self.min_memory_log) - Device.MAX_EVENTS:]
 
+            elif prop_path[1] == 'profile':
+                profile_data = cbor2.loads(value)
+                self.profile = decode_profile(profile_data)
+
         if len(prop_path) == 1:
-            self.properties[prop_path[0]]['default'] = value
+            self.properties[prop_path[0]]['default'] = value.decode()
         else:
-            self.properties[prop_path[0]][prop_path[1]] = value
+            try:
+                self.properties[prop_path[0]][prop_path[1]] = value.decode()
+            except UnicodeDecodeError:
+                try:
+                    self.properties[prop_path[0]][prop_path[1]] = cbor2.loads(value)
+                except (cbor2.CBORDecodeError, UnicodeDecodeError):
+                    self.properties[prop_path[0]][prop_path[1]] = value
 
     def is_alive(self):
         now = time.time()

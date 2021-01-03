@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Home Thing Manager - {{ device.uuid }}{% end %}
+
+{% block css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.22/css/dataTables.bootstrap4.min.css">
+{% end %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
@@ -18,10 +24,17 @@
             <th>Version</th>
             <td>{{ device.sw.version }}</td>
         </tr>
+        {% if hasattr(device.sw, 'capabilities') %}
         <tr>
-            <th>Profile</th>
-            <td>{{ device.sw.profile }}</td>
+            <th>Capabilities</th>
+            <td>{{ device.sw.capabilities }}</td>
         </tr>
+        {% elif hasattr(device.sw, 'profile')%}
+        <tr>
+            <th>Software Profile</th>
+            <td><pre>{{ device.sw.profile }}</pre></td>
+        </tr>
+        {% end %}
         <tr>
             <th>IP Address</th>
             <td><a href="http://{{ device.device.ip }}/">{{ device.device.ip }}</a></td>
@@ -37,10 +50,26 @@
                 {{ device.uptime_str }}
             </td>
         </tr>
+        <tr>
+            <th>Profile</th>
+            <td>
+                <div class="container">
+                    <div class="row">
+                        <div class="col-11">
+                            <pre>{{ device.profile }}</pre>
+                        </div>
+                        <div class="col-1">
+                            <a class="btn btn-primary" href="profile" role="button">Edit</a>
+                        </div>
+                    </div>
+                </div>
+
+            </td>
+        </tr>
     </tbody>
 </table>
 <h2>Reboots</h2>
-<table class="table">
+<table class="table" id="reboots">
     <thead>
     <tr><th>Date/Time</th><th>Uptime</th></tr>
     </thead>
@@ -56,4 +85,32 @@
 <h2>Memory</h2>
 {% autoescape None %}
 {{ memory_free_div }}
+{% if hasattr(device.device, 'taskStats') %}
+<h2>Task Stats</h2>
+<table class="table" id="taskStats">
+    <thead>
+    <tr><th>Task</th><th>Stack Left</th></tr>
+    </thead>
+    <tbody>
+    {% for entry in device.device.taskStats %}
+        <tr>
+            <td>{{ entry[0] }}</td>
+            <td>{{ entry[1] }}</td>
+        </tr>
+    {% end %}
+    </tbody>
+</table>
+
+{% end %}
+{% end %}
+
+{% block scripts %}
+<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.datatables.net/1.10.22/js/dataTables.bootstrap4.min.js" crossorigin="anonymous"></script>
+<script>
+$(document).ready(function() {
+    $('#taskStats').DataTable();
+    $('#reboots').DataTable();
+} );
+</script>
 {% end %}

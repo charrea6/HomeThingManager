@@ -11,7 +11,7 @@
         <tr>
             <th>UUID</th>
             <th>Version</th>
-            <th>Profile</th>
+            <th>Uptime</th>
         </tr>
     </thead>
     <tbody>
@@ -25,7 +25,7 @@
                 </svg>
                 <a href="/device/{{ device.uuid }}/" class="text-monospace">{{ device.uuid }}</a></td>
             <td>{{ device.sw.version }}</td>
-            <td>{{ device.sw.profile }}</td>
+            <td>{% if device.is_alive() %}{{ device.uptime_str }} {% else %}-{% end %}</td>
         </tr>
     {% end %}
     </tbody>
