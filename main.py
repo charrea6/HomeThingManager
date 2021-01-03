@@ -6,6 +6,7 @@ import argparse
 from htm.db import Database
 import htm.mqtt as mqtt
 import htm.web as web
+from htm.updates import Updater
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Web based HomeThing Manager")
@@ -20,7 +21,9 @@ if __name__ == '__main__':
     mqtt_handler = mqtt.get_handler(args.mqtt, db)
     mqtt_handler.connect()
 
-    web_server = web.get_server(db, mqtt_handler)
+    updater = Updater(args.updates_dir, mqtt_handler)
+
+    web_server = web.get_server(db, mqtt_handler, updater)
     web_server.listen(args.port, args.ip)
 
     tornado.ioloop.IOLoop.current().start()

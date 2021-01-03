@@ -90,10 +90,33 @@ class DeviceProfilePageHandler(RequestHandler):
         await self.render("profile.html", device=device, profile=source.text, error=error_message)
 
 
-def get_server(db, mqtt_handler):
+class DeviceUpdateHandler(RequestHandler):
+    def initialize(self, db, updater):
+        self.db = db
+        self.updater = updater
+
+    def get(self, device_id):
+        device = self.db.get_device(device_id)
+        if device is None:
+            self.send_error(404)
+            return
+        versions = self.updater.get_versions(device)
+        self.render("update.html", device=device, versions=versions, error=None)
+
+    async def post(self, device_id):
+        device = self.db.get_device(device_id)
+        if device is None:
+            self.send_error(404)
+            return
+        self.updater.update(device, self.get_body_argument('version'))
+        self.redirect(f'/device/{device.uuid}/')
+
+
+def get_server(db, mqtt_handler, updater):
     return Application([(r'/', MainPageHandler, dict(db=db)),
                         (r'/device/([^/]+)/', DevicePageHandler, dict(db=db)),
-                        (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(db=db, mqtt_handler=mqtt_handler))
+                        (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(db=db, mqtt_handler=mqtt_handler)),
+                        (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(db=db, updater=updater))
                         ],
                        template_path=os.path.join(os.path.dirname(__file__), 'templates'),
                        debug=True)

@@ -90,6 +90,8 @@ class Device:
         return humanize.precisedelta(datetime.timedelta(seconds=self.last_uptime))
 
 
+
+
 class Database:
     def __init__(self):
         self.devices = {}
@@ -106,3 +108,5 @@ class Database:
 
     def get_devices(self):
         return self.devices.values()
+
+

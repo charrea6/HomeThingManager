@@ -4,6 +4,11 @@
 {% block css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.10.22/css/dataTables.bootstrap4.min.css">
+<style>
+    .float-right {
+        float: right;
+    }
+</style>
 {% end %}
 
 {% block content %}
@@ -22,7 +27,10 @@
         </tr>
         <tr>
             <th>Version</th>
-            <td>{{ device.sw.version }}</td>
+            <td>
+                <span>{{ device.sw.version }}</span>
+                <a class="btn btn-primary float-right" href="update" role="button">Update</a>
+            </td>
         </tr>
         {% if hasattr(device.sw, 'capabilities') %}
         <tr>
@@ -53,17 +61,8 @@
         <tr>
             <th>Profile</th>
             <td>
-                <div class="container">
-                    <div class="row">
-                        <div class="col-11">
-                            <pre>{{ device.profile }}</pre>
-                        </div>
-                        <div class="col-1">
-                            <a class="btn btn-primary" href="profile" role="button">Edit</a>
-                        </div>
-                    </div>
-                </div>
-
+                <pre>{{ device.profile }}</pre>
+                <a class="btn btn-primary float-right" href="profile" role="button">Edit</a>
             </td>
         </tr>
     </tbody>
