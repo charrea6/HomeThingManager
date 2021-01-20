@@ -1,29 +1,19 @@
 from collections import defaultdict
+import yaml
+import os.path
 
 from .constants import *
 from .errors import *
 
-switch_types = {
-    DeviceProfile_SwitchType_Toggle: "toggleSwitch",
-    DeviceProfile_SwitchType_OnOff: "onOffSwitch",
-    DeviceProfile_SwitchType_Momentary: "momentarySwitch",
-    DeviceProfile_SwitchType_Contact: "contactSwitch",
-    DeviceProfile_SwitchType_Motion: "motionSensor"
-}
+
+switch_types = {}
+relay_types = {}
 
 
 def decode_switch(entry):
     pin = entry[1]
     switch_type = entry[2]
     return f'{switch_types[switch_type]}({pin})', None
-
-
-relay_types = {
-    DeviceProfile_RelayController_None: "relay",
-    DeviceProfile_RelayController_Switch: "switchedRelay",
-    DeviceProfile_RelayController_Temperature: "temperatureControlledRelay",
-    DeviceProfile_RelayController_Humidity: "humidityControlledRelay"
-}
 
 
 def decode_relay(entry):
@@ -36,38 +26,53 @@ def decode_relay(entry):
     return f'{relay_types[relay_type]}({pin}, {level}, id{controller_id})', controller_id
 
 
-def decode_dht22(entry):
-    pin = entry[1]
-    return f'dht22({pin})', None
+class DecodeFactory:
+    def __init__(self, name, details):
+        self.name = name
 
 
-def decode_i2c(type_name, entry):
-    sda = entry[1]
-    scl = entry[2]
-    addr = entry[3]
-    return f'{type_name}( {sda}, {scl}, {addr})', None
+class GPIOPinComponentFactory(DecodeFactory):
+    def __call__(self, entry):
+        return f"{self.name}({entry[1]})", None
 
 
-def decode_si7021(entry):
-    return decode_i2c('si7021', entry)
+class I2CDeviceFactory(DecodeFactory):
+    def __init__(self, name, details):
+        super().__init__(name, details)
+        self.addr = details['addr']
 
-
-def decode_tsl2561(entry):
-    return decode_i2c('tsl2561', entry)
-
-
-def decode_bme280(entry):
-    return decode_i2c('bme280', entry)
+    def __call__(self, entry):
+        sda = entry[1]
+        scl = entry[2]
+        addr = entry[3]
+        if addr == self.addr:
+            return f'{self.name}({sda}, {scl})', None
+        return f'{self.name}({sda}, {scl}, {addr})', None
 
 
 decoders = {
     DeviceProfile_EntryType_GPIOSwitch: decode_switch,
     DeviceProfile_EntryType_Relay: decode_relay,
-    DeviceProfile_EntryType_DHT22: decode_dht22,
-    DeviceProfile_EntryType_SI7021: decode_si7021,
-    DeviceProfile_EntryType_TSL2561: decode_tsl2561,
-    DeviceProfile_EntryType_BME280: decode_bme280
 }
+
+with open(os.path.join(os.path.dirname(__file__), "components.yaml")) as fp:
+    for name, details in yaml.safe_load(fp).items():
+        component_type = details['type']
+
+        if component_type == 'gpio_pin':
+            decoders[details['id']] = GPIOPinComponentFactory(name, details)
+
+        elif component_type == 'i2c':
+            decoders[details['id']] = I2CDeviceFactory(name, details)
+
+        elif component_type == 'gpio_switch':
+            switch_types[details['switchType']] = name
+
+        elif component_type == 'gpio_relay':
+            relay_types[details['relayType']] = name
+
+        else:
+            raise RuntimeError(f"Unknown componnet type {component_type} for {name}")
 
 
 def decode(profile):

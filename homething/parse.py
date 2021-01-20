@@ -1,3 +1,6 @@
+import yaml
+import os.path
+
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 from parsimonious.exceptions import VisitationError
@@ -6,7 +9,7 @@ from .encode import *
 
 grammar = Grammar(r"""
 start      = line* 
-line       = ws? (definition / assignment) ws?
+line       = ws? (definition / assignment / board) ws?
 id         = ~"[a-z_][a-z0-9_]*"i
 number     = ~"-?[0-9]+"
 hex        = ~"0x[0-9a-f]+"i
@@ -18,6 +21,7 @@ str        = ~'"[^\"]+"'
 arg        = ws? ( definition / id / str / hex/ number) ws?
 args       =  (arg "," args) / arg 
 definition = id "(" args? ")"
+board      = "%board:" ws? id
 assignment = id equal definition 
 """)
 
@@ -38,6 +42,19 @@ class Assignment:
 
     def __str__(self):
         return f"Assign({self.id}, {self.call})"
+
+
+class Board:
+    def __init__(self, source, pos, id):
+        self.source = source
+        self.pos = pos
+        self.id = id
+
+    def process(self, id_table, profile):
+        if self.id.name in boards:
+            id_table[Component.PINS_TABLE] = boards[self.id.name]
+        else:
+            raise ProfileEntryError(self.id.pos, f"Unknown board name {self.id.name}")
 
 
 class ProfileVisitor(NodeVisitor):
@@ -85,6 +102,10 @@ class ProfileVisitor(NodeVisitor):
     def visit_assignment(self, node, visited_children):
         id, _, definition = visited_children
         return Assignment(self.source, node.start, id.name, definition)
+
+    def visit_board(self, node, visited_children):
+        _, _, id = visited_children
+        return Board(self.source, node.start, id)
 
     def visit_line(self, node, visited_children):
         return visited_children[1][0]
@@ -150,3 +171,8 @@ class ProfileSource:
                 raise visitor.error
             raise
         return profile
+
+
+with open(os.path.join(os.path.dirname(__file__), "boards.yaml")) as fp:
+    boards = yaml.safe_load(fp)
+

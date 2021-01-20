@@ -1,0 +1,58 @@
+toggleSwitch:
+  type: gpio_switch
+  switchType: 0
+
+onOffSwitch:
+  type: gpio_switch
+  switchType: 1
+
+momentarySwitch:
+  type: gpio_switch
+  switchType: 2
+
+contactSwitch:
+  type: gpio_switch
+  switchType: 3
+
+motionSensor:
+  type: gpio_switch
+  switchType: 4
+
+relay:
+  type: gpio_relay
+  relayType: 0
+
+switchedRelay:
+  type: gpio_relay
+  relayType: 1
+
+temperatureControlledRelay:
+  type: gpio_relay
+  relayType: 2
+
+humidityControlledRelay:
+  type: gpio_relay
+  relayType: 3
+
+dht22:
+  type: gpio_pin
+  id: 2
+
+si7021:
+  type: i2c
+  id: 3
+  addr: 0x40
+
+tsl2561:
+  type: i2c
+  id: 4
+  addr: 0x39
+
+bme280:
+  type: i2c
+  id: 5
+  addr: 0x76
+
+ds18b20:
+  type: gpio_pin
+  id: 6
