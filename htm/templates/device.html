@@ -67,6 +67,52 @@
         </tr>
     </tbody>
 </table>
+
+<h2>Publish Topics</h2>
+<table class="table">
+    <thead>
+        <tr><th>Entry</th><th>Topics</th><th>type</th><th>value</th></tr>
+    </thead>
+    <tbody>
+    {% set types = ['bool', 'int', 'float', 'string', 'binary', 'hundredths', '°c', '%RH', 'kPa'] %}
+    {% for entry in device.entries %}
+    <tr>
+        <td rowspan="{{ len(entry.pubs) }}">{{ entry.path }}</td>
+        {% if entry.pubs %}
+        <td>
+            {{ entry.pubs[0].path }}
+        </td>
+        <td>
+            {{ types[entry.pubs[0].message_type] }}
+        </td>
+        <td>
+            {% if entry.pubs[0].path %}
+            {{ device.properties[entry.path][entry.pubs[0].path] }}
+            {% else %}
+            {{ device.properties[entry.path]['default'] }}
+            {% end %}
+        </td>
+        {% end %}
+    </tr>
+    {% if entry.pubs %}
+        {% for topic in entry.pubs[1:] %}
+        <tr>
+            <td>{{ topic.path }}</td>
+            <td>{{ types[topic.message_type] }}</td>
+            <td>{% if topic.path %}
+                {{ device.properties[entry.path][topic.path] }}
+                {% else %}
+                {{ device.properties[entry.path]['default'] }}
+                {% end %}
+            </td>
+        </tr>
+        {% end %}
+
+    {% end %}
+    {% end %}
+    </tbody>
+</table>
+
 <h2>Reboots</h2>
 <table class="table" id="reboots">
     <thead>
@@ -76,11 +122,13 @@
     {% for event in device.reboots %}
         <tr>
             <td>{{ event.event_time }}</td>
-            <td>{{ event.uptime }}</td>
+            <td>{{ human_uptime(event.uptime) }}</td>
         </tr>
     {% end %}
     </tbody>
 </table>
+
+
 <h2>Memory</h2>
 {% autoescape None %}
 {{ memory_free_div }}

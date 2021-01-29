@@ -3,11 +3,14 @@ import datetime
 from tornado.web import Application, RequestHandler
 import plotly.graph_objects as go
 import plotly.io
-
+import humanize
 from parsimonious.exceptions import IncompleteParseError
 from cbor2 import dumps
 from homething.parse import *
 
+
+def human_uptime(secs):
+    return humanize.precisedelta(datetime.timedelta(seconds=secs))
 
 
 class MainPageHandler(RequestHandler):
@@ -49,7 +52,7 @@ class DevicePageHandler(RequestHandler):
         else:
             memory_free_div = '<i>No memory statistics</i>'
 
-        self.render("device.html", device=device, memory_free_div=memory_free_div)
+        self.render("device.html", device=device, memory_free_div=memory_free_div, human_uptime=human_uptime)
 
 
 class DeviceProfilePageHandler(RequestHandler):

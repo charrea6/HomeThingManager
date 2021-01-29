@@ -5,6 +5,7 @@ import humanize
 import cbor2
 from homething.decode import decode as decode_profile
 
+
 class AttributeAccessDictionary(dict):
     def __getattr__(self, item):
         if item in self.keys():
@@ -27,6 +28,20 @@ class MemoryEvent:
         self.bytes_free = bytes_free
 
 
+class TopicInfo:
+    def __init__(self, entry, path, message_type):
+        self.entry = entry
+        self.path = path
+        self.message_type = message_type
+
+
+class TopicEntry:
+    def __init__(self, path, pubs, subs):
+        self.path = path
+        self.pubs = [TopicInfo(self, pub_path, message_type) for pub_path, message_type in pubs.items()]
+        self.subs = [TopicInfo(self, sub_path, message_type) for sub_path, message_type in subs.items()]
+
+
 class Device:
     ALIVE_UPTIME_THRESHOLD = 10
     MAX_EVENTS = 1000
@@ -40,6 +55,7 @@ class Device:
         self.memory_free_log = []
         self.min_memory_log = []
         self.profile = ''
+        self.entries = []
 
     def update_property(self, prop_path, value):
         if prop_path[0] == 'device':
@@ -65,6 +81,10 @@ class Device:
                 profile_data = cbor2.loads(value)
                 self.profile = decode_profile(profile_data)
 
+            elif prop_path[1] == 'topics':
+                topics_data = cbor2.loads(value)
+                self.process_topics(topics_data)
+
         if len(prop_path) == 1:
             self.properties[prop_path[0]]['default'] = value.decode()
         else:
@@ -89,7 +109,13 @@ class Device:
     def uptime_str(self):
         return humanize.precisedelta(datetime.timedelta(seconds=self.last_uptime))
 
-
+    def process_topics(self, topics):
+        self.entries = []
+        descriptions = topics[0]
+        entries = topics[1]
+        for name, description_id in entries.items():
+            pubs, subs = descriptions[description_id]
+            self.entries.append(TopicEntry(name, pubs, subs))
 
 
 class Database:
