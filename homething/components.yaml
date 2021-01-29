@@ -53,6 +53,6 @@ bme280:
   id: 5
   addr: 0x76
 
-ds18b20:
+ds18x20:
   type: gpio_pin
   id: 6
