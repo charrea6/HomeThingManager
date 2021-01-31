@@ -24,45 +24,67 @@
         <tr>
             <th>UUID</th>
             <td>{{ device.uuid }}</td>
+            <td></td>
         </tr>
         <tr>
             <th>Version</th>
             <td>
                 <span>{{ device.sw.version }}</span>
-                <a class="btn btn-primary float-right" href="update" role="button">Update</a>
+
+            </td>
+            <td>
+                <div class="d-flex justify-content-center w-100">
+                <a class="btn btn-primary w-50" href="update" role="button">Update</a>
+                </div>
             </td>
         </tr>
         {% if hasattr(device.sw, 'capabilities') %}
         <tr>
             <th>Capabilities</th>
             <td>{{ device.sw.capabilities }}</td>
+            <td></td>
         </tr>
         {% elif hasattr(device.sw, 'profile')%}
         <tr>
             <th>Software Profile</th>
             <td><pre>{{ device.sw.profile }}</pre></td>
+            <td></td>
         </tr>
         {% end %}
         <tr>
             <th>IP Address</th>
             <td><a href="http://{{ device.device.ip }}/">{{ device.device.ip }}</a></td>
+            <td></td>
         </tr>
         <tr>
             <th>Uptime</th>
             <td>
                 {% if not device.is_alive() %}
+                {% end %}
+                {{ device.uptime_str }}
                 <svg width="1.0625em" height="1em" viewBox="0 0 17 16" class="bi bi-exclamation-triangle-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                     <path fill-rule="evenodd" d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 5zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
                 </svg>
-                {% end %}
-                {{ device.uptime_str }}
+
+            </td>
+            <td>
+                <div class="d-flex justify-content-center w-100">
+                    <form method="post" action="restart">
+                        <button class="btn btn-danger" type="submit">Restart</button>
+                    </form>
+                </div>
             </td>
         </tr>
         <tr>
             <th>Profile</th>
             <td>
                 <pre>{{ device.profile }}</pre>
-                <a class="btn btn-primary float-right" href="profile" role="button">Edit</a>
+
+            </td>
+            <td>
+                <div class="d-flex justify-content-center w-100">
+                    <a class="btn btn-primary w-50" href="profile" role="button">Edit</a>
+                </div>
             </td>
         </tr>
     </tbody>

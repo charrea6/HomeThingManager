@@ -3,7 +3,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s : %
 
 import tornado.ioloop
 import argparse
-from htm.db import Database
+from htm.devices import Devices
 import htm.mqtt as mqtt
 import htm.web as web
 from htm.updates import Updater
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     parser.add_argument("--mqtt", type=str, help="URL for the MQTT server to connect to.", default="mqtt://localhost")
     args = parser.parse_args()
 
-    db = Database()
+    db = Devices()
 
     mqtt_handler = mqtt.get_handler(args.mqtt, db)
     mqtt_handler.connect()

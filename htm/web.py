@@ -14,19 +14,19 @@ def human_uptime(secs):
 
 
 class MainPageHandler(RequestHandler):
-    def initialize(self, db):
-        self.db = db
+    def initialize(self, devices):
+        self.devices = devices
 
     def get(self):
-        self.render("index.html", devices=self.db.get_devices())
+        self.render("index.html", devices=self.devices.get_devices())
 
 
 class DevicePageHandler(RequestHandler):
-    def initialize(self, db):
-        self.db = db
+    def initialize(self, devices):
+        self.devices = devices
 
     def get(self, device_id):
-        device = self.db.get_device(device_id)
+        device = self.devices.get_device(device_id)
         if device is None:
             self.send_error(404)
             return
@@ -56,19 +56,19 @@ class DevicePageHandler(RequestHandler):
 
 
 class DeviceProfilePageHandler(RequestHandler):
-    def initialize(self, db, mqtt_handler):
-        self.db = db
+    def initialize(self, devices, mqtt_handler):
+        self.devices = devices
         self.mqtt_handler = mqtt_handler
 
     def get(self, device_id):
-        device = self.db.get_device(device_id)
+        device = self.devices.get_device(device_id)
         if device is None:
             self.send_error(404)
             return
         self.render("profile.html", device=device, profile=device.profile, error=None)
 
     async def post(self, device_id):
-        device = self.db.get_device(device_id)
+        device = self.devices.get_device(device_id)
         if device is None:
             self.send_error(404)
             return
@@ -94,12 +94,12 @@ class DeviceProfilePageHandler(RequestHandler):
 
 
 class DeviceUpdateHandler(RequestHandler):
-    def initialize(self, db, updater):
-        self.db = db
+    def initialize(self, devices, updater):
+        self.devices = devices
         self.updater = updater
 
     def get(self, device_id):
-        device = self.db.get_device(device_id)
+        device = self.devices.get_device(device_id)
         if device is None:
             self.send_error(404)
             return
@@ -107,7 +107,7 @@ class DeviceUpdateHandler(RequestHandler):
         self.render("update.html", device=device, versions=versions, error=None)
 
     async def post(self, device_id):
-        device = self.db.get_device(device_id)
+        device = self.devices.get_device(device_id)
         if device is None:
             self.send_error(404)
             return
@@ -115,11 +115,29 @@ class DeviceUpdateHandler(RequestHandler):
         self.redirect(f'/device/{device.uuid}/')
 
 
-def get_server(db, mqtt_handler, updater):
-    return Application([(r'/', MainPageHandler, dict(db=db)),
-                        (r'/device/([^/]+)/', DevicePageHandler, dict(db=db)),
-                        (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(db=db, mqtt_handler=mqtt_handler)),
-                        (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(db=db, updater=updater))
+class DeviceRestartHandler(RequestHandler):
+    def initialize(self, devices, mqtt_handler):
+        self.devices = devices
+        self.mqtt_handler = mqtt_handler
+
+    async def post(self, device_id):
+        device = self.devices.get_device(device_id)
+        if device is None:
+            self.send_error(404)
+            return
+        topic = f'homething/{device.uuid}/device/ctrl'
+        await self.mqtt_handler.send_message(topic, b'restart')
+
+        self.redirect(f'/device/{device.uuid}/')
+
+
+
+def get_server(devices, mqtt_handler, updater):
+    return Application([(r'/', MainPageHandler, dict(devices=devices)),
+                        (r'/device/([^/]+)/', DevicePageHandler, dict(devices=devices)),
+                        (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),
+                        (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(devices=devices, updater=updater)),
+                        (r'/device/([^/]+)/restart', DeviceRestartHandler, dict(devices=devices, mqtt_handler=mqtt_handler))
                         ],
                        template_path=os.path.join(os.path.dirname(__file__), 'templates'),
                        debug=True)

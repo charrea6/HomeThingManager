@@ -65,6 +65,7 @@ class Device:
                     self.reboots.append(RebootEvent(self.last_uptime, new_uptime))
                 self.last_uptime = new_uptime
                 self.last_uptime_update = time.time()
+
             elif prop_path[1] == 'memFree':
                 mem_free = int(value.decode())
                 self.memory_free_log.append(MemoryEvent(mem_free))
@@ -118,7 +119,7 @@ class Device:
             self.entries.append(TopicEntry(name, pubs, subs))
 
 
-class Database:
+class Devices:
     def __init__(self):
         self.devices = {}
 
