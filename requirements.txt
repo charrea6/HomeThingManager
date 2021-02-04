@@ -6,3 +6,6 @@ plotly
 cbor2
 parsimonious
 PyYAML
+sqlalchemy
+pytz
+sqlalchemy-datatables

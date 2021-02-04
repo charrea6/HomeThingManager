@@ -18,6 +18,10 @@ if __name__ == '__main__':
 
     db = Devices()
 
+    # Check that devices are still online and if not update the event log
+    online_check = tornado.ioloop.PeriodicCallback(db.check_devices_online, 1000)
+    online_check.start()
+
     mqtt_handler = mqtt.get_handler(args.mqtt, db)
     mqtt_handler.connect()
 

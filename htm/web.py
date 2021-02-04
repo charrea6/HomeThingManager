@@ -7,10 +7,18 @@ import humanize
 from parsimonious.exceptions import IncompleteParseError
 from cbor2 import dumps
 from homething.parse import *
+from htm import db
+from datatables import ColumnDT, DataTables
+import json
+import pytz
 
 
-def human_uptime(secs):
-    return humanize.precisedelta(datetime.timedelta(seconds=secs))
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, datetime.datetime):
+            return str(o)
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, o)
 
 
 class MainPageHandler(RequestHandler):
@@ -30,29 +38,8 @@ class DevicePageHandler(RequestHandler):
         if device is None:
             self.send_error(404)
             return
-        if device.memory_free_log:
-            fig = go.Figure()
 
-            times = [e.event_time for e in device.memory_free_log]
-            times.append(datetime.datetime.now())
-
-            measurements = [e.bytes_free for e in device.memory_free_log]
-            measurements.append(device.memory_free_log[-1].bytes_free)
-
-            fig.add_trace(go.Scatter(x=times, y=measurements, name="Free Memory"))
-            if device.min_memory_log:
-                times = [e.event_time for e in device.min_memory_log]
-                times.append(datetime.datetime.now())
-
-                measurements = [e.bytes_free for e in device.min_memory_log]
-                measurements.append(device.min_memory_log[-1].bytes_free)
-                fig.add_trace(go.Scatter(x=times, y=measurements, name="Minimum Free Memory"))
-
-            memory_free_div = plotly.io.to_html(fig, include_plotlyjs='cdn', include_mathjax='cdn', full_html=False)
-        else:
-            memory_free_div = '<i>No memory statistics</i>'
-
-        self.render("device.html", device=device, memory_free_div=memory_free_div, human_uptime=human_uptime)
+        self.render("device.html", device=device)
 
 
 class DeviceProfilePageHandler(RequestHandler):
@@ -131,13 +118,79 @@ class DeviceRestartHandler(RequestHandler):
         self.redirect(f'/device/{device.uuid}/')
 
 
+class DeviceEventsDatatableHandler(RequestHandler):
+    def initialize(self, devices) -> None:
+        self.devices = devices
+
+    def get(self, device_id):
+        device = self.devices.get_device(device_id)
+        if device is None:
+            self.send_error(404)
+            return
+
+        query = db.get_events_query(device_id)
+        columns = [
+            ColumnDT(db.Event.id, mData='id'),
+            ColumnDT(db.Event.datetime, mData='datetime'),
+            ColumnDT(db.Event.event, mData='event'),
+            ColumnDT(db.Event.uptime, mData='uptime')
+        ]
+        args = {k: v[0].decode() for k, v in self.request.arguments.items()}
+        row_table = DataTables(args, query, columns)
+        self.set_header("Content-Type", "application/json; charset=UTF-8")
+        self.write(JSONEncoder().encode(row_table.output_result()))
+        self.flush()
+
+
+class DevicesJsonHandler(RequestHandler):
+    def initialize(self, devices) -> None:
+        self.devices = devices
+
+    def get(self):
+        device_list = {"devices": [
+            {"id": device.uuid, "uptime": device.last_uptime, "version": device.sw.version, "online": device.online}
+            for device in self.devices.get_devices()]}
+
+        self.write(device_list)
+        self.flush()
+
+
+class DeviceMemoryStatsHandler(RequestHandler):
+    def initialize(self, devices) -> None:
+        self.devices = devices
+
+    def get(self, device_id):
+        device = self.devices.get_device(device_id)
+        if device is None:
+            self.send_error(404)
+            return
+
+        free = []
+        min_free = []
+        times = []
+        result = {"free": free, "times": times, "min_free": min_free}
+        to_time = datetime.datetime.now(pytz.utc)
+        from_time = to_time - datetime.timedelta(days=30)
+        for log in db.get_memory_logs(device_id, from_time, to_time):
+            times.append(log.datetime)
+            min_free.append(log.min_free)
+            free.append(log.free)
+        self.set_header("Content-Type", "application/json; charset=UTF-8")
+        self.write(JSONEncoder().encode(result))
+        self.flush()
+
 
 def get_server(devices, mqtt_handler, updater):
+
     return Application([(r'/', MainPageHandler, dict(devices=devices)),
+                        (r'/devices', DevicesJsonHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/', DevicePageHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),
                         (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(devices=devices, updater=updater)),
-                        (r'/device/([^/]+)/restart', DeviceRestartHandler, dict(devices=devices, mqtt_handler=mqtt_handler))
+                        (r'/device/([^/]+)/restart', DeviceRestartHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),
+                        (r'/device/([^/]+)/events', DeviceEventsDatatableHandler, dict(devices=devices)),
+                        (r'/device/([^/]+)/memorystats', DeviceMemoryStatsHandler, dict(devices=devices))
                         ],
                        template_path=os.path.join(os.path.dirname(__file__), 'templates'),
+                       static_path=os.path.join(os.path.dirname(__file__), 'static'),
                        debug=True)

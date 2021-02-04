@@ -4,6 +4,8 @@ import datetime
 import humanize
 import cbor2
 from homething.decode import decode as decode_profile
+from .db import add_memory_log, add_event
+import pytz
 
 
 class AttributeAccessDictionary(dict):
@@ -11,21 +13,6 @@ class AttributeAccessDictionary(dict):
         if item in self.keys():
             return self.get(item)
         raise AttributeError(f"No such item: {item}")
-
-
-class RebootEvent:
-    def __init__(self, previous_uptime, new_uptime):
-        self.event_time = datetime.datetime.now() - datetime.timedelta(seconds=new_uptime)
-        self.uptime = previous_uptime
-
-
-class MemoryEvent:
-    def __init__(self, bytes_free, event_time=None):
-        if event_time is None:
-            self.event_time = datetime.datetime.now()
-        else:
-            self.event_time = event_time
-        self.bytes_free = bytes_free
 
 
 class TopicInfo:
@@ -49,34 +36,43 @@ class Device:
     def __init__(self, uuid):
         self.uuid = uuid
         self.properties = defaultdict(AttributeAccessDictionary)
+        self.online = False
         self.last_uptime_update = 0
         self.last_uptime = 0
-        self.reboots = []
-        self.memory_free_log = []
-        self.min_memory_log = []
         self.profile = ''
         self.entries = []
+        self.current_free = None
+        self.current_min_free = None
 
     def update_property(self, prop_path, value):
         if prop_path[0] == 'device':
             if prop_path[1] == 'uptime':
                 new_uptime = int(value.decode())
                 if new_uptime <= self.last_uptime:
-                    self.reboots.append(RebootEvent(self.last_uptime, new_uptime))
+                    self.add_event("reboot", new_uptime)
+
+                if not self.online:
+                    self.add_event("online", new_uptime)
+                self.online = True
+
                 self.last_uptime = new_uptime
                 self.last_uptime_update = time.time()
 
             elif prop_path[1] == 'memFree':
                 mem_free = int(value.decode())
-                self.memory_free_log.append(MemoryEvent(mem_free))
-                if len(self.memory_free_log) > Device.MAX_EVENTS:
-                    self.memory_free_log = self.memory_free_log[len(self.memory_free_log) - Device.MAX_EVENTS:]
+
+                self.current_free = mem_free
+                if self.current_min_free is not None:
+                    if mem_free < self.current_min_free:
+                        self.current_min_free = mem_free
+                    add_memory_log(self.uuid, mem_free, self.current_min_free)
 
             elif prop_path[1] == 'memLow':
                 mem_free = int(value.decode())
-                self.min_memory_log.append(MemoryEvent(mem_free))
-                if len(self.min_memory_log) > Device.MAX_EVENTS:
-                    self.min_memory_log = self.min_memory_log[len(self.min_memory_log) - Device.MAX_EVENTS:]
+                self.current_min_free = mem_free
+
+                if self.current_free is not None:
+                    add_memory_log(self.uuid, self.current_free, self.current_min_free)
 
             elif prop_path[1] == 'profile':
                 profile_data = cbor2.loads(value)
@@ -101,6 +97,12 @@ class Device:
         now = time.time()
         return self.last_uptime_update + self.ALIVE_UPTIME_THRESHOLD > now
 
+    def check_online(self):
+        now = time.time()
+        if self.online and now - self.last_uptime_update > self.ALIVE_UPTIME_THRESHOLD:
+            self.online = False
+            self.add_event("offline", self.last_uptime)
+
     def __getattr__(self, item):
         if item in self.properties:
             return self.properties[item]
@@ -117,6 +119,9 @@ class Device:
         for name, description_id in entries.items():
             pubs, subs = descriptions[description_id]
             self.entries.append(TopicEntry(name, pubs, subs))
+
+    def add_event(self, event, uptime):
+        add_event(self.uuid, event, uptime)
 
 
 class Devices:
@@ -135,5 +140,9 @@ class Devices:
 
     def get_devices(self):
         return self.devices.values()
+
+    def check_devices_online(self):
+        for device in self.devices.values():
+            device.check_online()
 
 

@@ -1,33 +1,80 @@
 {% extends "base.html" %}
 {% block title %}Home Thing Manager{% end %}
+{% block css %}
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4/dt-1.10.23/datatables.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+{% end %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item active" aria-current="page">Home</li>
   </ol>
 </nav>
-<table class="table">
+<table class="table" id="devices">
     <thead>
         <tr>
+            <th><i class="bi bi-exclamation-circle"></i></th>
             <th>UUID</th>
             <th>Version</th>
             <th>Uptime</th>
         </tr>
     </thead>
-    <tbody>
-    {% for device in devices %}
-        <tr>
-            <td>
-                <svg width="1.0625em" height="1em" viewBox="0 0 17 16" class="bi bi-exclamation-triangle-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                {% if not device.is_alive() %}
-                    <path fill-rule="evenodd" d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 5zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                {% end %}
-                </svg>
-                <a href="/device/{{ device.uuid }}/" class="text-monospace">{{ device.uuid }}</a></td>
-            <td>{{ device.sw.version }}</td>
-            <td>{% if device.is_alive() %}{{ device.uptime_str }} {% else %}-{% end %}</td>
-        </tr>
-    {% end %}
-    </tbody>
 </table>
+{% end %}
+
+{% block scripts %}
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs4/dt-1.10.23/datatables.min.js"></script>
+<script src="/static/js/humanize-duration.js"></script>
+<script>
+$(document).ready(function() {
+    $('#devices').DataTable({
+        ajax: {
+            url: "devices",
+            dataSrc: "devices"
+        },
+        createdRow: function( row, data, dataIndex ) {
+          if (!data.online) {
+              $(row).addClass('table-danger');
+          }
+        },
+        columns: [
+            {
+                data: "online",
+                render: function (data, type) {
+                    switch(type) {
+                        case "display":
+                            return data ? "" : "<span><i class=\"bi bi-exclamation-circle\"></i></span>";
+                        default:
+                            return data
+                    }
+                }
+            },
+            {
+                data: "id",
+                render: function (data, type) {
+                    switch(type) {
+                        case "display":
+                            return `<a href="/device/${data}/" class="text-monospace">${data}</a>`
+                        default:
+                            return data;
+                    }
+                }
+            },
+            {data: "version"},
+            {
+                data: "uptime",
+                render: function (data, type, row) {
+                    switch(type) {
+                        case "display":
+                            return row.online ? humanizeDuration(data * 1000) : "-";
+                        default:
+                            return data;
+                    }
+                }
+            }
+        ]
+    });
+} );
+</script>
 {% end %}

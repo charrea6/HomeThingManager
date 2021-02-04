@@ -2,8 +2,10 @@
 {% block title %}Home Thing Manager - {{ device.uuid }}{% end %}
 
 {% block css %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/1.10.22/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4/dt-1.10.23/datatables.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://uicdn.toast.com/chart/latest/toastui-chart.min.css" />
+
 <style>
     .float-right {
         float: right;
@@ -60,11 +62,9 @@
             <th>Uptime</th>
             <td>
                 {% if not device.is_alive() %}
+                <i class="bi bi-exclamation-circle" style="color: red"></i>
                 {% end %}
                 {{ device.uptime_str }}
-                <svg width="1.0625em" height="1em" viewBox="0 0 17 16" class="bi bi-exclamation-triangle-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                    <path fill-rule="evenodd" d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 5zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-                </svg>
 
             </td>
             <td>
@@ -135,25 +135,18 @@
     </tbody>
 </table>
 
-<h2>Reboots</h2>
+<h2>Events</h2>
 <table class="table" id="reboots">
     <thead>
-    <tr><th>Date/Time</th><th>Uptime</th></tr>
+    <tr><th>Date/Time</th><th>Event</th><th>Uptime</th></tr>
     </thead>
-    <tbody>
-    {% for event in device.reboots %}
-        <tr>
-            <td>{{ event.event_time }}</td>
-            <td>{{ human_uptime(event.uptime) }}</td>
-        </tr>
-    {% end %}
-    </tbody>
 </table>
 
-
 <h2>Memory</h2>
-{% autoescape None %}
-{{ memory_free_div }}
+<div id="memoryChart" style="width: 100%; height: 500px">
+    <span id="memoryChartLoading">Loading...</span>
+</div>
+
 {% if hasattr(device.device, 'taskStats') %}
 <h2>Task Stats</h2>
 <table class="table" id="taskStats">
@@ -174,12 +167,75 @@
 {% end %}
 
 {% block scripts %}
-<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js" crossorigin="anonymous"></script>
-<script src="https://cdn.datatables.net/1.10.22/js/dataTables.bootstrap4.min.js" crossorigin="anonymous"></script>
+<script src="https://uicdn.toast.com/chart/latest/toastui-chart.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs4/dt-1.10.23/datatables.min.js"></script>
+<script src="/static/js/humanize-duration.js"></script>
 <script>
-$(document).ready(function() {
-    $('#taskStats').DataTable();
-    $('#reboots').DataTable();
-} );
+    let memoryChart;
+
+    $(document).ready(function () {
+
+        $.get("memorystats", function (response) {
+            $("#memoryChartLoading").remove();
+            const el = document.getElementById('memoryChart');
+            const data = {
+                categories: response.times,
+                series: {
+                    line: [{
+                        name: 'Free',
+                        data: response.free,
+                    }],
+                    area: [{
+                        name: 'Minimum Free',
+                        data: response.min_free,
+                    }]
+                }
+            };
+            const options = {
+                chart: {width: "auto", height: "auto"},
+                xAxis: {
+                    title: 'Time',
+                    date: true
+                },
+                yAxis: {
+                    title: 'Bytes',
+                },
+                tooltip: {
+                    formatter: (value) => `${value} bytes`,
+                },
+                legend: {
+                    align: 'bottom',
+                },
+                series: {
+                    zoomable: true
+                }
+            };
+
+            memoryChart = toastui.Chart.lineAreaChart({el, data, options});
+        }).fail(function(){
+            $("#memoryChartLoading").text("Error loading memory stats");
+        });
+
+        $('#taskStats').DataTable();
+        $('#reboots').DataTable({
+            ajax: "events",
+            serverSide: true,
+            columns: [
+                {data: "datetime"},
+                {data: "event"},
+                {
+                    data: "uptime",
+                    render: function (data, type, row) {
+                        switch (type) {
+                            case "display":
+                                return humanizeDuration(data * 1000);
+                            default:
+                                return data;
+                        }
+                    }
+                }
+            ]
+        });
+    });
 </script>
 {% end %}
