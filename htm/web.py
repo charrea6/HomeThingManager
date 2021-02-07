@@ -98,7 +98,7 @@ class DeviceUpdateHandler(RequestHandler):
         if device is None:
             self.send_error(404)
             return
-        self.updater.update(device, self.get_body_argument('version'))
+        await self.updater.update(device, self.get_body_argument('version'))
         self.redirect(f'/device/{device.uuid}/')
 
 
