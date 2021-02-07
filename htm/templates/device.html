@@ -122,9 +122,9 @@
             <td>{{ topic.path }}</td>
             <td>{{ types[topic.message_type] }}</td>
             <td>{% if topic.path %}
-                {{ device.properties[entry.path][topic.path] }}
+                {{ device.properties[entry.path].get(topic.path, '') }}
                 {% else %}
-                {{ device.properties[entry.path]['default'] }}
+                {{ device.properties[entry.path].get('default', '') }}
                 {% end %}
             </td>
         </tr>
