@@ -69,31 +69,6 @@ class Switch(Component):
         profile.append(entry)
 
 
-class ToggleSwitch(Switch):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_SwitchType_Toggle, pos, args)
-
-
-class OnOffSwitch(Switch):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_SwitchType_OnOff, pos, args)
-
-
-class MomentarySwitch(Switch):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_SwitchType_Momentary, pos, args)
-
-
-class ContactSwitch(Switch):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_SwitchType_Contact, pos, args)
-
-
-class MotionSensor(Switch):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_SwitchType_Motion, pos, args)
-
-
 class BaseRelay(Component):
     TYPE_NAME = "relay"
 
@@ -102,7 +77,7 @@ class BaseRelay(Component):
         self.type = type
 
     def process_component(self, profile):
-        self.check_arg_count(2 if type == DeviceProfile_RelayController_None else 3)
+        self.check_arg_count(2 if self.type == DeviceProfile_RelayController_None else 3)
         entry = [DeviceProfile_EntryType_Relay, self.get_pin(0), self.get_level(), self.type]
         if self.type != DeviceProfile_RelayController_None:
             id = self.get_arg(2, (ID, Component))
@@ -118,26 +93,6 @@ class BaseRelay(Component):
         if level.arg not in (0, 1):
             raise ProfileEntryError(level.pos, f'Level must be either 0 or 1 not "{level.arg}"')
         return level.arg
-
-
-class Relay(BaseRelay):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_RelayController_None, pos, args)
-
-
-class SwitchedRelay(BaseRelay):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_RelayController_Switch, pos, args)
-
-
-class TemperatureControlledRelay(BaseRelay):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_RelayController_Temperature, pos, args)
-
-
-class HumidityControlledRelay(BaseRelay):
-    def __init__(self, pos, args):
-        super().__init__(DeviceProfile_RelayController_Humidity, pos, args)
 
 
 class GPIOPinComponent(Component):

@@ -56,3 +56,7 @@ bme280:
 ds18x20:
   type: gpio_pin
   id: 6
+
+led:
+  type: gpio_pin
+  id: 7
