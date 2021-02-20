@@ -170,7 +170,7 @@ class DeviceMemoryStatsHandler(RequestHandler):
         times = []
         result = {"free": free, "times": times, "min_free": min_free}
         to_time = datetime.datetime.now(pytz.utc)
-        from_time = to_time - datetime.timedelta(days=30)
+        from_time = to_time - datetime.timedelta(days=1)
         for log in db.get_memory_logs(device_id, from_time, to_time):
             times.append(log.datetime)
             min_free.append(log.min_free)
