@@ -89,81 +89,97 @@
         </tr>
     </tbody>
 </table>
-
-<h2>Publish Topics</h2>
-<table class="table">
-    <thead>
-        <tr><th>Entry</th><th>Topics</th><th>type</th><th>value</th></tr>
-    </thead>
-    <tbody>
-    {% set types = ['bool', 'int', 'float', 'string', 'binary', 'hundredths', '°c', '%RH', 'kPa'] %}
-    {% for entry in device.entries %}
-    <tr>
-        <td rowspan="{{ len(entry.pubs) }}">{{ entry.path }}</td>
-        {% if entry.pubs %}
-        <td>
-            {{ entry.pubs[0].path }}
-        </td>
-        <td>
-            {{ types[entry.pubs[0].message_type] }}
-        </td>
-        <td>
-            {% if entry.pubs[0].path %}
-            {{ device.properties[entry.path][entry.pubs[0].path] }}
-            {% else %}
-            {{ device.properties[entry.path]['default'] }}
-            {% end %}
-        </td>
-        {% end %}
-    </tr>
-    {% if entry.pubs %}
-        {% for topic in entry.pubs[1:] %}
+<nav>
+  <div class="nav nav-tabs" id="nav-tab" role="tablist">
+    <a class="nav-link active" id="nav-topics-tab" data-toggle="tab" href="#nav-topics" role="tab" aria-controls="nav-topics" aria-selected="true">Publish Topics</a>
+    <a class="nav-link" id="nav-events-tab" data-toggle="tab" href="#nav-events" role="tab" aria-controls="nav-events" aria-selected="false">Events</a>
+    <a class="nav-link" id="nav-memory-tab" data-toggle="tab" href="#nav-memory" role="tab" aria-controls="nav-memory" aria-selected="false">Memory</a>
+{% if hasattr(device.device, 'taskStats') %}
+    <a class="nav-link" id="nav-task-tab" data-toggle="tab" href="#nav-task" role="tab" aria-controls="nav-task" aria-selected="false">Task Stats</a>
+{% end %}
+  </div>
+</nav>
+<div class="tab-content" id="nav-tabContent">
+  <div class="tab-pane fade show active" id="nav-topics" role="tabpanel" aria-labelledby="nav-topics-tab">
+    <table class="table">
+        <thead>
+            <tr><th>Entry</th><th>Topics</th><th>type</th><th>value</th></tr>
+        </thead>
+        <tbody>
+        {% set types = ['bool', 'int', 'float', 'string', 'binary', 'hundredths', '°c', '%RH', 'kPa'] %}
+        {% for entry in device.entries %}
         <tr>
-            <td>{{ topic.path }}</td>
-            <td>{{ types[topic.message_type] }}</td>
-            <td>{% if topic.path %}
-                {{ device.properties[entry.path].get(topic.path, '') }}
+            <td rowspan="{{ len(entry.pubs) }}">{{ entry.path }}</td>
+            {% if entry.pubs %}
+            <td>
+                {{ entry.pubs[0].path }}
+            </td>
+            <td>
+                {{ types[entry.pubs[0].message_type] }}
+            </td>
+            <td>
+                {% if entry.pubs[0].path %}
+                {{ device.properties[entry.path].get(entry.pubs[0].path, '') }}
                 {% else %}
                 {{ device.properties[entry.path].get('default', '') }}
                 {% end %}
             </td>
+            {% end %}
         </tr>
+        {% if entry.pubs %}
+            {% for topic in entry.pubs[1:] %}
+            <tr>
+                <td>{{ topic.path }}</td>
+                <td>{{ types[topic.message_type] }}</td>
+                <td>{% if topic.path %}
+                    {{ device.properties[entry.path].get(topic.path, '') }}
+                    {% else %}
+                    {{ device.properties[entry.path].get('default', '') }}
+                    {% end %}
+                </td>
+            </tr>
+            {% end %}
+
         {% end %}
+        {% end %}
+        </tbody>
+    </table>
+  </div>
+  <div class="tab-pane fade" id="nav-events" role="tabpanel" aria-labelledby="nav-events-tab">
+      <table class="table" id="reboots">
+        <thead>
+        <tr><th>Date/Time</th><th>Event</th><th>Uptime</th></tr>
+        </thead>
+          <tbody></tbody>
+    </table>
+  </div>
+  <div class="tab-pane fade" id="nav-memory" role="tabpanel" aria-labelledby="nav-memory-tab">
+    <div id="memoryChart" style="width: 100%; height: 500px">
+        <span id="memoryChartLoading">Loading...</span>
+    </div>
+  </div>
+{% if hasattr(device.device, 'taskStats') %}
+  <div class="tab-pane fade" id="nav-task" role="tabpanel" aria-labelledby="nav-task-tab">
+    <table class="table" id="taskStats">
+        <thead>
+        <tr><th>Task</th><th>Stack Left</th></tr>
+        </thead>
+        <tbody>
+        {% for entry in device.device.taskStats %}
+            <tr>
+                <td>{{ entry[0] }}</td>
+                <td>{{ entry[1] }}</td>
+            </tr>
+        {% end %}
+        </tbody>
+    </table>
 
-    {% end %}
-    {% end %}
-    </tbody>
-</table>
-
-<h2>Events</h2>
-<table class="table" id="reboots">
-    <thead>
-    <tr><th>Date/Time</th><th>Event</th><th>Uptime</th></tr>
-    </thead>
-</table>
-
-<h2>Memory</h2>
-<div id="memoryChart" style="width: 100%; height: 500px">
-    <span id="memoryChartLoading">Loading...</span>
+  </div>
+{% end %}
 </div>
 
-{% if hasattr(device.device, 'taskStats') %}
-<h2>Task Stats</h2>
-<table class="table" id="taskStats">
-    <thead>
-    <tr><th>Task</th><th>Stack Left</th></tr>
-    </thead>
-    <tbody>
-    {% for entry in device.device.taskStats %}
-        <tr>
-            <td>{{ entry[0] }}</td>
-            <td>{{ entry[1] }}</td>
-        </tr>
-    {% end %}
-    </tbody>
-</table>
 
-{% end %}
+
 {% end %}
 
 {% block scripts %}
