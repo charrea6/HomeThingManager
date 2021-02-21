@@ -43,8 +43,14 @@ class Device:
         self.entries = []
         self.current_free = None
         self.current_min_free = None
+        self.retained_topics = set()
 
-    def update_property(self, prop_path, value):
+    def update_property(self, prop_path, value, retain):
+        if retain:
+            self.retained_topics.add('/'.join(prop_path))
+            if value == b'':
+                return
+
         if prop_path[0] == 'device':
             if prop_path[1] == 'uptime':
                 new_uptime = int(value.decode())
@@ -123,17 +129,41 @@ class Device:
     def add_event(self, event, uptime):
         add_event(self.uuid, event, uptime)
 
+    async def set_profile(self, mqtt, profile):
+        topic = f'homething/{self.uuid}/device/ctrl'
+        await mqtt.send_message(topic, b'setprofile\0' + profile)
+
+    async def reboot(self, mqtt):
+        topic = f'homething/{self.uuid}/device/ctrl'
+        await mqtt.send_message(topic, b'restart')
+
+    async def delete(self, mqtt):
+        for topic_path in self.retained_topics:
+            if topic_path == 'device/uptime':
+                continue
+
+            topic = f'homething/{self.uuid}/{topic_path}'
+            await mqtt.send_message(topic, b'', retain=True)
+
+        topic = f'homething/{self.uuid}/device/uptime'
+        await mqtt.send_message(topic, b'', retain=True)
+
 
 class Devices:
     def __init__(self):
         self.devices = {}
 
-    def update_device(self, uuid, prop_path, value):
+    def update_device(self, uuid, prop_path, value, retain):
         device = self.devices.get(uuid)
         if device is None:
+            if prop_path == ['device', 'uptime'] and value == b'':
+                return
             device = Device(uuid)
             self.devices[uuid] = device
-        device.update_property(prop_path, value)
+
+        if prop_path == ['device', 'uptime'] and value == b'':
+            del self.devices[uuid]
+        device.update_property(prop_path, value, retain)
 
     def get_device(self, uuid):
         return self.devices.get(uuid)

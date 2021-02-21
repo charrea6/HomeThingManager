@@ -30,8 +30,9 @@ class MainPageHandler(RequestHandler):
 
 
 class DevicePageHandler(RequestHandler):
-    def initialize(self, devices):
+    def initialize(self, devices, mqtt_handler):
         self.devices = devices
+        self.mqtt_handler = mqtt_handler
 
     def get(self, device_id):
         device = self.devices.get_device(device_id)
@@ -40,6 +41,15 @@ class DevicePageHandler(RequestHandler):
             return
 
         self.render("device.html", device=device)
+
+    async def delete(self, device_id):
+        device = self.devices.get_device(device_id)
+        if device is None:
+            self.send_error(404)
+            return
+
+        await device.delete(self.mqtt_handler)
+        self.set_status(200, "deleted")
 
 
 class DeviceProfilePageHandler(RequestHandler):
@@ -67,9 +77,7 @@ class DeviceProfilePageHandler(RequestHandler):
         try:
             source.parse()
             profile = source.process()
-            profile_str = dumps(profile)
-            topic = f'homething/{device.uuid}/device/ctrl'
-            await self.mqtt_handler.send_message(topic, b'setprofile\0' + profile_str)
+            await device.set_profile(self.mqtt_handler, dumps(profile))
             self.redirect(f'/device/{device.uuid}/')
             return
         except IncompleteParseError as e:
@@ -112,9 +120,7 @@ class DeviceRestartHandler(RequestHandler):
         if device is None:
             self.send_error(404)
             return
-        topic = f'homething/{device.uuid}/device/ctrl'
-        await self.mqtt_handler.send_message(topic, b'restart')
-
+        await device.reboot(self.mqtt_handler)
         self.redirect(f'/device/{device.uuid}/')
 
 
@@ -184,7 +190,7 @@ def get_server(devices, mqtt_handler, updater):
 
     return Application([(r'/', MainPageHandler, dict(devices=devices)),
                         (r'/devices', DevicesJsonHandler, dict(devices=devices)),
-                        (r'/device/([^/]+)/', DevicePageHandler, dict(devices=devices)),
+                        (r'/device/([^/]+)/', DevicePageHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),
                         (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),
                         (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(devices=devices, updater=updater)),
                         (r'/device/([^/]+)/restart', DeviceRestartHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),

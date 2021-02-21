@@ -26,7 +26,13 @@
         <tr>
             <th>UUID</th>
             <td>{{ device.uuid }}</td>
-            <td></td>
+            <td>
+                <div class="d-flex justify-content-center w-100">
+
+                        <button class="btn btn-danger" type="button" id="removedevice">Remove</button>
+
+                </div>
+            </td>
         </tr>
         <tr>
             <th>Version</th>
@@ -252,6 +258,11 @@
                 }
             ]
         });
+        $('#removedevice').on('click',function () {
+            $.ajax({method: 'delete', url: ""}).done(function () {
+                window.location.assign('/');
+            })
+        })
     });
 </script>
 {% end %}

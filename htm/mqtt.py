@@ -36,7 +36,7 @@ class MQTTHandler:
             kwargs['password'] = self.url_details.password
         return host, kwargs
 
-    async def send_message(self, topic, message):
+    async def send_message(self, topic, message, retain=False):
         raise NotImplementedError('send_message needs to be implemented by subclass')
 
 
@@ -84,10 +84,10 @@ class AIOMqttHandler(MQTTHandler):
     def process_message(self, message):
         topic_elements = message.topic_name.split('/')
         uuid = topic_elements[1]
-        self.db.update_device(uuid, topic_elements[2:], message.payload.decode())
+        self.db.update_device(uuid, topic_elements[2:], message.payload.decode(), message.retain)
 
-    async def send_message(self, topic, message):
-        await self._client.publish(aio_mqtt.PublishableMessage(topic, message))
+    async def send_message(self, topic, message, retain=False):
+        await self._client.publish(aio_mqtt.PublishableMessage(topic, message, retain=retain))
 
 
 class AsyncioMqttHandler(MQTTHandler):
@@ -110,10 +110,10 @@ class AsyncioMqttHandler(MQTTHandler):
     def process_message(self, message):
         topic_elements = message.topic.split('/')
         uuid = topic_elements[1]
-        self.db.update_device(uuid, topic_elements[2:], message.payload)
+        self.db.update_device(uuid, topic_elements[2:], message.payload, message.retain)
 
-    async def send_message(self, topic, message):
-        await self.client.publish(topic, message)
+    async def send_message(self, topic, message, retain=False):
+        await self.client.publish(topic, message, retain=retain)
 
 
 def get_handler(url, db):
