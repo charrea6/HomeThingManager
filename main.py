@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     updater = Updater(args.updates_dir, mqtt_handler)
 
-    web_server = web.get_server(db, mqtt_handler, updater)
+    web_server = web.get_server(db, updater)
     web_server.listen(args.port, args.ip)
 
     tornado.ioloop.IOLoop.current().start()

@@ -1,11 +1,15 @@
+from __future__ import annotations
 from collections import defaultdict
+import json
 import time
 import datetime
 import humanize
 import cbor2
 from homething.decode import decode as decode_profile
 from .db import add_memory_log, add_event
-import pytz
+from .deviceinfo import TopicInfo, TopicEntry
+from .homeassistant import get_home_assistant_configs
+import asyncio
 
 
 class AttributeAccessDictionary(dict):
@@ -15,25 +19,12 @@ class AttributeAccessDictionary(dict):
         raise AttributeError(f"No such item: {item}")
 
 
-class TopicInfo:
-    def __init__(self, entry, path, message_type):
-        self.entry = entry
-        self.path = path
-        self.message_type = message_type
-
-
-class TopicEntry:
-    def __init__(self, path, pubs, subs):
-        self.path = path
-        self.pubs = [TopicInfo(self, pub_path, message_type) for pub_path, message_type in pubs.items()]
-        self.subs = [TopicInfo(self, sub_path, message_type) for sub_path, message_type in subs.items()]
-
-
 class Device:
     ALIVE_UPTIME_THRESHOLD = 10
     MAX_EVENTS = 1000
 
-    def __init__(self, uuid):
+    def __init__(self, devices, uuid):
+        self.devices = devices
         self.uuid = uuid
         self.properties = defaultdict(AttributeAccessDictionary)
         self.online = False
@@ -120,45 +111,50 @@ class Device:
 
     def process_topics(self, topics):
         self.entries = []
-        descriptions = topics[0]
-        entries = topics[1]
-        for name, description_id in entries.items():
+
+        descriptions = {}
+        for description_id, (raw_pubs, raw_subs) in topics[0].items():
+            descriptions[description_id] = (TopicInfo.list_from_dict(raw_pubs), TopicInfo.list_from_dict(raw_subs))
+
+        for name, description_id in topics[1].items():
             pubs, subs = descriptions[description_id]
-            self.entries.append(TopicEntry(name, pubs, subs))
+            entry = TopicEntry(name, pubs, subs)
+            self.entries.append(entry)
 
     def add_event(self, event, uptime):
         add_event(self.uuid, event, uptime)
 
-    async def set_profile(self, mqtt, profile):
+    async def set_profile(self, profile):
         topic = f'homething/{self.uuid}/device/ctrl'
-        await mqtt.send_message(topic, b'setprofile\0' + profile)
+        await self.devices.mqtt.send_message(topic, b'setprofile\0' + profile)
 
-    async def reboot(self, mqtt):
+    async def reboot(self):
         topic = f'homething/{self.uuid}/device/ctrl'
-        await mqtt.send_message(topic, b'restart')
+        await self.devices.mqtt.send_message(topic, b'restart')
 
-    async def delete(self, mqtt):
+    async def delete(self):
         for topic_path in self.retained_topics:
             if topic_path == 'device/uptime':
                 continue
 
             topic = f'homething/{self.uuid}/{topic_path}'
-            await mqtt.send_message(topic, b'', retain=True)
+            await self.devices.mqtt.send_message(topic, b'', retain=True)
 
         topic = f'homething/{self.uuid}/device/uptime'
-        await mqtt.send_message(topic, b'', retain=True)
+        await self.devices.mqtt.send_message(topic, b'', retain=True)
 
 
 class Devices:
     def __init__(self):
         self.devices = {}
+        self.mqtt = None
 
     def update_device(self, uuid, prop_path, value, retain):
         device = self.devices.get(uuid)
         if device is None:
             if prop_path == ['device', 'uptime'] and value == b'':
                 return
-            device = Device(uuid)
+            device = Device(self, uuid)
             self.devices[uuid] = device
 
         if prop_path == ['device', 'uptime'] and value == b'':

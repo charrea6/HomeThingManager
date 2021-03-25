@@ -15,6 +15,7 @@ class MQTTHandler:
         if self.url_details.scheme not in ('mqtt', 'mqtts'):
             raise RuntimeError('Unsupported URL for MQTT "%s"' % url)
         self.db = db
+        db.mqtt = self
         self.task = None
         self._loop = asyncio.get_event_loop()
         self._reconnection_interval = 10

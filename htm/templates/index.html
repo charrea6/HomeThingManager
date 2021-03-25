@@ -16,6 +16,7 @@
         <tr>
             <th><i class="bi bi-exclamation-circle"></i></th>
             <th>UUID</th>
+            <th>Description</th>
             <th>Version</th>
             <th>Uptime</th>
         </tr>
@@ -61,6 +62,7 @@ $(document).ready(function() {
                     }
                 }
             },
+            {data: "description"},
             {data: "version"},
             {
                 data: "uptime",

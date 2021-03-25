@@ -30,9 +30,8 @@ class MainPageHandler(RequestHandler):
 
 
 class DevicePageHandler(RequestHandler):
-    def initialize(self, devices, mqtt_handler):
+    def initialize(self, devices):
         self.devices = devices
-        self.mqtt_handler = mqtt_handler
 
     def get(self, device_id):
         device = self.devices.get_device(device_id)
@@ -48,14 +47,13 @@ class DevicePageHandler(RequestHandler):
             self.send_error(404)
             return
 
-        await device.delete(self.mqtt_handler)
+        await device.delete()
         self.set_status(200, "deleted")
 
 
 class DeviceProfilePageHandler(RequestHandler):
-    def initialize(self, devices, mqtt_handler):
+    def initialize(self, devices):
         self.devices = devices
-        self.mqtt_handler = mqtt_handler
 
     def get(self, device_id):
         device = self.devices.get_device(device_id)
@@ -77,7 +75,7 @@ class DeviceProfilePageHandler(RequestHandler):
         try:
             source.parse()
             profile = source.process()
-            await device.set_profile(self.mqtt_handler, dumps(profile))
+            await device.set_profile(dumps(profile))
             self.redirect(f'/device/{device.uuid}/')
             return
         except IncompleteParseError as e:
@@ -111,16 +109,15 @@ class DeviceUpdateHandler(RequestHandler):
 
 
 class DeviceRestartHandler(RequestHandler):
-    def initialize(self, devices, mqtt_handler):
+    def initialize(self, devices):
         self.devices = devices
-        self.mqtt_handler = mqtt_handler
 
     async def post(self, device_id):
         device = self.devices.get_device(device_id)
         if device is None:
             self.send_error(404)
             return
-        await device.reboot(self.mqtt_handler)
+        await device.reboot()
         self.redirect(f'/device/{device.uuid}/')
 
 
@@ -154,7 +151,8 @@ class DevicesJsonHandler(RequestHandler):
 
     def get(self):
         device_list = {"devices": [
-            {"id": device.uuid, "uptime": device.last_uptime, "version": device.sw.version, "online": device.online}
+            {"id": device.uuid, "uptime": device.last_uptime, "version": device.sw.version, "online": device.online,
+             "description": device.device.get("description", "")}
             for device in self.devices.get_devices()]}
 
         self.write(device_list)
@@ -186,14 +184,14 @@ class DeviceMemoryStatsHandler(RequestHandler):
         self.flush()
 
 
-def get_server(devices, mqtt_handler, updater):
+def get_server(devices, updater):
 
     return Application([(r'/', MainPageHandler, dict(devices=devices)),
                         (r'/devices', DevicesJsonHandler, dict(devices=devices)),
-                        (r'/device/([^/]+)/', DevicePageHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),
-                        (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),
+                        (r'/device/([^/]+)/', DevicePageHandler, dict(devices=devices)),
+                        (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(devices=devices, updater=updater)),
-                        (r'/device/([^/]+)/restart', DeviceRestartHandler, dict(devices=devices, mqtt_handler=mqtt_handler)),
+                        (r'/device/([^/]+)/restart', DeviceRestartHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/events', DeviceEventsDatatableHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/memorystats', DeviceMemoryStatsHandler, dict(devices=devices))
                         ],
