@@ -166,7 +166,7 @@ class Device:
 
     async def update(self, version):
         topic = f'homething/{self.uuid}/device/ctrl'
-        await self.devices.mqtt.send_message(topic, b'restart ' + version.encode())
+        await self.devices.mqtt.send_message(topic, b'update ' + version.encode())
 
     async def delete(self):
         for topic_path in self.retained_topics:
