@@ -217,7 +217,7 @@ def get_server(devices, updates):
                         (r'/devices', DevicesJsonHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/', DevicePageHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(devices=devices)),
-                        (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(devices=devices, updater=updates)),
+                        (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(devices=devices, updates=updates)),
                         (r'/device/([^/]+)/restart', DeviceRestartHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/events', DeviceEventsDatatableHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/memorystats', DeviceMemoryStatsHandler, dict(devices=devices)),
