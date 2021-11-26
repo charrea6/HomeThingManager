@@ -1,4 +1,5 @@
 import os
+import os.path
 import re
 
 re_1mb_image = re.compile(r'homething\.app[12]__(.*)\.ota')
@@ -15,16 +16,17 @@ class UpdateManager:
             if entry.startswith('flash'):
                 flash_type = entry
                 break
-        versions = set()
+
         if flash_type == 'flash1MB':
             regex = re_1mb_image
         else:
             regex = re_image
 
+        versions = list()
         for filename in os.listdir(self.updates_dir):
             m = regex.match(filename)
             if m:
-                versions.add(m.group(1))
-        versions = list(versions)
-        versions.sort()
-        return versions
+                mtime = os.path.getmtime(os.path.join(self.updates_dir, filename))
+                versions.append((m.group(1), mtime))
+        versions.sort(key=lambda x: x[1], reverse=True)
+        return [v for v, _ in versions]
