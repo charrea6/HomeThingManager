@@ -29,7 +29,7 @@
 <script src="/static/js/humanize-duration.js"></script>
 <script>
 $(document).ready(function() {
-    $('#devices').DataTable({
+    let table = $('#devices').DataTable({
         ajax: {
             url: "devices",
             dataSrc: "devices"
@@ -78,6 +78,7 @@ $(document).ready(function() {
             }
         ]
     });
+    setInterval( function () { table.ajax.reload(); }, 5000 );
 } );
 </script>
 {% end %}
