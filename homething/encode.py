@@ -131,6 +131,15 @@ class I2cDevice(Component):
         profile.append(entry)
 
 
+class LEDStripSPI(Component):
+    TYPE_NAME = "led_strip_spi"
+
+    def process_component(self, profile):
+        self.check_arg_count(1)
+        entry = [DeviceProfile_EntryType_LEDStripSPI, self.get_arg(0, int).arg]
+        profile.append(entry)
+
+
 class ID:
     def __init__(self, name):
         self.name = name
@@ -185,11 +194,21 @@ class I2CDeviceFactory(ComponentFactory):
         return I2cDevice(self.name, self.component_id, self.addr, pos, args)
 
 
+class LEDStripSPIFactory(ComponentFactory):
+    def __init__(self, name, details):
+        details['id'] = DeviceProfile_EntryType_LEDStripSPI
+        super().__init__(name, details)
+
+    def __call__(self, pos, args):
+        return LEDStripSPI(pos, args)
+
+
 factories = {
     'gpio_pin': GPIOPinComponentFactory,
     'i2c': I2CDeviceFactory,
     'gpio_switch': GPIOSwitchFactory,
-    'gpio_relay': GPIORelayFactory
+    'gpio_relay': GPIORelayFactory,
+    'led_strip_spi': LEDStripSPIFactory,
 }
 
 components = {}
