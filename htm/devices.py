@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections import defaultdict
+import logging
 import json
 import time
 import datetime
@@ -8,8 +9,9 @@ import cbor2
 from homething.decode import decode as decode_profile
 from .db import add_memory_log, add_event
 from .deviceinfo import TopicInfo, TopicEntry
-from .homeassistant import get_home_assistant_configs
-import asyncio
+from htm import notifications
+
+logger = logging.getLogger("devices")
 
 
 class AttributeAccessDictionary(dict):
@@ -20,7 +22,7 @@ class AttributeAccessDictionary(dict):
 
 
 class Device:
-    ALIVE_UPTIME_THRESHOLD = 10
+    ALIVE_UPTIME_THRESHOLD = 30 * 3  # Allow upto 2 missed heart beats.
     MAX_EVENTS = 1000
 
     def __init__(self, devices, uuid):
@@ -30,6 +32,9 @@ class Device:
         self.online = False
         self.last_uptime_update = 0
         self.last_uptime = 0
+        self.info = {}
+        self.diag = {}
+        self.task_stats = []
         self.profile = ''
         self.entries = []
         self.current_free = None
@@ -43,52 +48,26 @@ class Device:
                 return
 
         if prop_path[0] == 'device':
-            if prop_path[1] == 'uptime':
-                new_uptime = int(value.decode())
-                if new_uptime <= self.last_uptime:
-                    self.add_event("reboot", new_uptime)
-
-                if not self.online:
-                    self.add_event("online", new_uptime)
-                self.online = True
-
-                self.last_uptime = new_uptime
-                self.last_uptime_update = time.time()
-
-            elif prop_path[1] == 'memFree':
-                mem_free = int(value.decode())
-
-                self.current_free = mem_free
-                if self.current_min_free is not None:
-                    if mem_free < self.current_min_free:
-                        self.current_min_free = mem_free
-                    add_memory_log(self.uuid, mem_free, self.current_min_free)
-
-            elif prop_path[1] == 'memLow':
-                mem_free = int(value.decode())
-                self.current_min_free = mem_free
-
-                if self.current_free is not None:
-                    add_memory_log(self.uuid, self.current_free, self.current_min_free)
-
-            elif prop_path[1] == 'profile':
-                profile_data = cbor2.loads(value)
-                self.profile = decode_profile(profile_data)
-
-            elif prop_path[1] == 'topics':
-                topics_data = cbor2.loads(value)
-                self.process_topics(topics_data)
-
-        if len(prop_path) == 1:
-            self.properties[prop_path[0]]['default'] = value.decode()
+            self._process_device(prop_path[1], value)
         else:
-            try:
-                self.properties[prop_path[0]][prop_path[1]] = value.decode()
-            except UnicodeDecodeError:
+
+            if len(prop_path) == 1:
+                self.properties[prop_path[0]]['default'] = value.decode()
+                topic = prop_path[0]
+                value = self.properties[prop_path[0]]['default']
+
+            else:
                 try:
-                    self.properties[prop_path[0]][prop_path[1]] = cbor2.loads(value)
-                except (cbor2.CBORDecodeError, UnicodeDecodeError):
-                    self.properties[prop_path[0]][prop_path[1]] = value
+                    self.properties[prop_path[0]][prop_path[1]] = value.decode()
+                except UnicodeDecodeError:
+                    try:
+                        self.properties[prop_path[0]][prop_path[1]] = cbor2.loads(value)
+                    except (cbor2.CBORDecodeError, UnicodeDecodeError):
+                        self.properties[prop_path[0]][prop_path[1]] = value
+                topic = f'{prop_path[0]}/{prop_path[1]}'
+                value = self.properties[prop_path[0]][prop_path[1]]
+
+            notifications.manager.send_notification(self, "topic", dict(path=topic, value=value))
 
     def is_alive(self):
         now = time.time()
@@ -99,6 +78,59 @@ class Device:
         if self.online and now - self.last_uptime_update > self.ALIVE_UPTIME_THRESHOLD:
             self.online = False
             self.add_event("offline", self.last_uptime)
+            notifications.manager.send_notification(self, "online", False)
+
+    def _process_device(self, path, value):
+        if path == 'info':
+            try:
+                self.info = json.loads(value.decode())
+                notifications.manager.send_notification(self, "info", self.info)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                logger.error("Failed to parse %r as JSON", value, exc_info=True)
+
+        if path == 'diag':
+            try:
+                self.diag = json.loads(value.decode())
+                self._process_diag(self.diag)
+                notifications.manager.send_notification(self, "diag", self.diag)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                logger.error("Failed to parse %r as JSON", value, exc_info=True)
+
+        elif path == 'profile':
+            profile_data = cbor2.loads(value)
+            self.profile = decode_profile(profile_data)
+            notifications.manager.send_notification(self, "profile", self.profile)
+
+        elif path == 'topics':
+            topics_data = cbor2.loads(value)
+            self.process_topics(topics_data)
+            notifications.manager.send_notification(self, "topics", self.entries)
+
+    def _process_diag(self, diag):
+        new_uptime = diag.get("uptime", 0)
+        if new_uptime <= self.last_uptime:
+            self.add_event("reboot", new_uptime)
+            notifications.manager.send_notification(self, "reboot", True)
+
+        if not self.online:
+            self.add_event("online", new_uptime)
+            notifications.manager.send_notification(self, "online", True)
+        self.online = True
+
+        self.last_uptime = new_uptime
+        self.last_uptime_update = time.time()
+        notifications.manager.send_notification(self, "uptime", dict(uptime=new_uptime, updated=self.last_uptime_update))
+
+        if 'mem' in diag:
+            memory = diag['mem']
+            mem_free = memory['free']
+            mem_low = memory['low']
+            add_memory_log(self.uuid, mem_free, mem_low)
+            notifications.manager.send_notification(self, "memory", dict(mem_free=mem_free, mem_low=mem_low))
+
+        if 'tasks' in diag:
+            self.task_stats = [(task['name'], task['stackMinLeft']) for task in diag['tasks']]
+            notifications.manager.send_notification(self, "taskStats", self.task_stats)
 
     def __getattr__(self, item):
         if item in self.properties:
@@ -131,6 +163,10 @@ class Device:
     async def reboot(self):
         topic = f'homething/{self.uuid}/device/ctrl'
         await self.devices.mqtt.send_message(topic, b'restart')
+
+    async def update(self, version):
+        topic = f'homething/{self.uuid}/device/ctrl'
+        await self.devices.mqtt.send_message(topic, b'restart ' + version.encode())
 
     async def delete(self):
         for topic_path in self.retained_topics:

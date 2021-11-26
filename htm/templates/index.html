@@ -34,6 +34,7 @@ $(document).ready(function() {
             url: "devices",
             dataSrc: "devices"
         },
+        paging: false,
         createdRow: function( row, data, dataIndex ) {
           if (!data.online) {
               $(row).addClass('table-danger');

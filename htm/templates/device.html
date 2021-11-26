@@ -29,54 +29,54 @@
             <td>
                 <div class="d-flex justify-content-center w-100">
 
-                        <button class="btn btn-danger" type="button" id="removedevice">Remove</button>
+                        <button class="btn btn-sm btn-danger" type="button" id="removedevice"><img src="/static/images/delete-forever.png" title="Remove device"></button>
 
                 </div>
+            </td>
+        </tr>
+        <tr>
+            <th>Description</th>
+            <td id="description">
+                {{ device.info.get('description','') }}
+            </td>
+            <td>
             </td>
         </tr>
         <tr>
             <th>Version</th>
-            <td>
-                <span>{{ device.sw.version }}</span>
-
+            <td id="version">
+                {{ device.info.get('version','') }}
             </td>
             <td>
                 <div class="d-flex justify-content-center w-100">
-                <a class="btn btn-primary w-50" href="update" role="button">Update</a>
+                    <a class="btn btn-sm btn-primary" href="update" role="button"><img src="/static/images/update.png" title="Update"></a>
                 </div>
             </td>
         </tr>
-        {% if hasattr(device.sw, 'capabilities') %}
         <tr>
             <th>Capabilities</th>
-            <td>{{ device.sw.capabilities }}</td>
+            <td id="capabilities">{{ device.info.get('capabilities','') }}</td>
             <td></td>
         </tr>
-        {% elif hasattr(device.sw, 'profile')%}
-        <tr>
-            <th>Software Profile</th>
-            <td><pre>{{ device.sw.profile }}</pre></td>
-            <td></td>
-        </tr>
-        {% end %}
         <tr>
             <th>IP Address</th>
-            <td><a href="http://{{ device.device.ip }}/">{{ device.device.ip }}</a></td>
+            <td id="ip">
+                {% if device.info.get('ip') is not None %}
+                <a href="http://{{ device.info['ip'] }}/">{{ device.info['ip'] }}</a>
+                {% end %}
+            </td>
             <td></td>
         </tr>
         <tr>
-            <th>Uptime</th>
+            <th>Uptime<i id="online" class="bi bi-exclamation-circle {% if device.online %}invisible{% else %}visible{% end %}" style="color: red"></i></th>
             <td>
-                {% if not device.is_alive() %}
-                <i class="bi bi-exclamation-circle" style="color: red"></i>
-                {% end %}
-                {{ device.uptime_str }}
-
+                <span id="uptime"></span>
+                <small>(last seen <span id="uptimeUpdated">never</span>)</small>
             </td>
             <td>
                 <div class="d-flex justify-content-center w-100">
                     <form method="post" action="restart">
-                        <button class="btn btn-danger" type="submit">Restart</button>
+                        <button class="btn btn-sm btn-warning" type="submit"><img src="/static/images/restart.png" title="Restart"></button>
                     </form>
                 </div>
             </td>
@@ -84,12 +84,12 @@
         <tr>
             <th>Profile</th>
             <td>
-                <pre>{{ device.profile }}</pre>
+                <pre id="profile">{{ device.profile }}</pre>
 
             </td>
             <td>
                 <div class="d-flex justify-content-center w-100">
-                    <a class="btn btn-primary w-50" href="profile" role="button">Edit</a>
+                    <a class="btn btn-sm btn-light" href="profile" role="button"><img src="/static/images/edit.png" title="Edit profile"></a>
                 </div>
             </td>
         </tr>
@@ -100,16 +100,14 @@
     <a class="nav-link active" id="nav-topics-tab" data-toggle="tab" href="#nav-topics" role="tab" aria-controls="nav-topics" aria-selected="true">Publish Topics</a>
     <a class="nav-link" id="nav-events-tab" data-toggle="tab" href="#nav-events" role="tab" aria-controls="nav-events" aria-selected="false">Events</a>
     <a class="nav-link" id="nav-memory-tab" data-toggle="tab" href="#nav-memory" role="tab" aria-controls="nav-memory" aria-selected="false">Memory</a>
-{% if hasattr(device.device, 'taskStats') %}
     <a class="nav-link" id="nav-task-tab" data-toggle="tab" href="#nav-task" role="tab" aria-controls="nav-task" aria-selected="false">Task Stats</a>
-{% end %}
   </div>
 </nav>
 <div class="tab-content" id="nav-tabContent">
   <div class="tab-pane fade show active" id="nav-topics" role="tabpanel" aria-labelledby="nav-topics-tab">
     <table class="table">
         <thead>
-            <tr><th>Entry</th><th>Topics</th><th>type</th><th>value</th></tr>
+            <tr><th style="width: 25%">Entry</th><th style="width: 25%">Topics</th><th style="width: 10%">type</th><th style="width: 40%">value</th></tr>
         </thead>
         <tbody>
         {% set types = ['bool', 'int', 'float', 'string', 'binary', 'hundredths', '°c', '%RH', 'kPa'] %}
@@ -123,12 +121,16 @@
             <td>
                 {{ types[entry.pubs[0].message_type] }}
             </td>
-            <td>
-                {% if entry.pubs[0].path %}
-                {{ device.properties[entry.path].get(entry.pubs[0].path, '') }}
-                {% else %}
-                {{ device.properties[entry.path].get('default', '') }}
-                {% end %}
+            {% if entry.pubs[0].path %}
+                {% set topic_path = entry.pubs[0].path %}
+                {% set full_path = entry.path + '/' + entry.pubs[0].path  %}
+            {% else %}
+                {% set topic_path = 'default' %}
+                {% set full_path = entry.path %}
+            {% end %}
+
+            <td id="topic_{{ full_path.replace("/","_") }}">
+                {{ device.properties[entry.path].get(topic_path, '') }}
             </td>
             {% end %}
         </tr>
@@ -137,11 +139,15 @@
             <tr>
                 <td>{{ topic.path }}</td>
                 <td>{{ types[topic.message_type] }}</td>
-                <td>{% if topic.path %}
-                    {{ device.properties[entry.path].get(topic.path, '') }}
-                    {% else %}
-                    {{ device.properties[entry.path].get('default', '') }}
-                    {% end %}
+                {% if topic.path %}
+                    {% set topic_path = topic.path %}
+                    {% set full_path = entry.path + '/' + topic.path  %}
+                {% else %}
+                    {% set topic_path = 'default' %}
+                    {% set full_path = entry.path %}
+                {% end %}
+                <td id="topic_{{ full_path.replace("/","_") }}">
+                    {{ device.properties[entry.path].get(topic_path, '') }}
                 </td>
             </tr>
             {% end %}
@@ -164,14 +170,13 @@
         <span id="memoryChartLoading">Loading...</span>
     </div>
   </div>
-{% if hasattr(device.device, 'taskStats') %}
   <div class="tab-pane fade" id="nav-task" role="tabpanel" aria-labelledby="nav-task-tab">
     <table class="table" id="taskStats">
         <thead>
         <tr><th>Task</th><th>Stack Left</th></tr>
         </thead>
         <tbody>
-        {% for entry in device.device.taskStats %}
+        {% for entry in device.task_stats %}
             <tr>
                 <td>{{ entry[0] }}</td>
                 <td>{{ entry[1] }}</td>
@@ -179,9 +184,7 @@
         {% end %}
         </tbody>
     </table>
-
   </div>
-{% end %}
 </div>
 
 
@@ -192,11 +195,12 @@
 <script src="https://uicdn.toast.com/chart/latest/toastui-chart.min.js"></script>
 <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/dt-1.10.23/datatables.min.js"></script>
 <script src="/static/js/humanize-duration.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.4/dayjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1.10.4/plugin/relativeTime.min.js"></script>
 <script>
-    let memoryChart;
+    let memoryChart, lastSeen, lastSeenTimer;
 
-    $(document).ready(function () {
-
+    function updateMemoryStats() {
         $.get("memorystats", function (response) {
             $("#memoryChartLoading").remove();
             const el = document.getElementById('memoryChart');
@@ -232,21 +236,99 @@
                     zoomable: true
                 }
             };
-
-            memoryChart = toastui.Chart.lineAreaChart({el, data, options});
+            if (memoryChart === undefined) {
+                memoryChart = toastui.Chart.lineAreaChart({el, data, options});
+            } else {
+                memoryChart.setData(data);
+            }
         }).fail(function(){
             $("#memoryChartLoading").text("Error loading memory stats");
         });
+    }
+
+    function setUptime(uptime, lastUpdated){
+        $('#uptime').text(humanizeDuration(uptime*1000));
+        lastSeen = lastUpdated;
+        $('#uptimeUpdated').text(dayjs.unix(lastUpdated).fromNow());
+        if (lastSeenTimer === undefined) {
+            lastSeenTimer = setInterval(function() { $('#uptimeUpdated').text(dayjs.unix(lastSeen).fromNow());}, 1000);
+        }
+    }
+
+    function processInfo(info) {
+
+    }
+
+
+    function processWSMessage(evt) {
+        let json = JSON.parse(evt.data);
+        let data = json.data;
+        switch (json.event) {
+            case 'info': processInfo(data);
+                break;
+            case 'uptime': setUptime(data['uptime'], data['updated']);
+                break;
+            case 'profile':
+                $('#profile').text(data);
+                break;
+            case 'online':
+                if (data) {
+                    $("#online").removeClass("visible").addClass("invisible");
+                } else {
+                    $("#online").removeClass("invisible").addClass("visible");
+                }
+                break;
+            case 'topic':
+                $("#topic_" + data.path.replace("/", "_")).text(data.value);
+                break;
+        }
+    }
+
+    function connectWS() {
+        let loc = window.location, new_uri;
+        if (loc.protocol === "https:") {
+            new_uri = "wss:";
+        } else {
+            new_uri = "ws:";
+        }
+        new_uri += "//" + loc.host;
+        new_uri += loc.pathname + (loc.pathname.endsWith('/') ? '':'/') + 'ws';
+        let ws = new WebSocket(new_uri);
+        ws.onclose = function() {
+           connectWS();
+        };
+
+        ws.onerror = function() {
+            ws.close();
+        }
+
+        ws.onmessage = processWSMessage;
+    }
+
+    $(document).ready(function () {
+
+        connectWS();
+        updateMemoryStats();
+        dayjs.extend(dayjs_plugin_relativeTime);
+        setUptime({{ device.last_uptime }}, {{ device.last_uptime_update }});
 
         $('#taskStats').DataTable();
-        $('#reboots').DataTable({
+        eventsTable = $('#reboots').DataTable({
             ajax: "events",
             serverSide: true,
+            order: [[0, 'desc']],
             columns: [
-                {data: "datetime"},
-                {data: "event"},
+                {
+                    data: "datetime",
+                    width: "30%"
+                },
+                {
+                    data: "event",
+                    width: "20%"
+                },
                 {
                     data: "uptime",
+                    width: "50%",
                     render: function (data, type, row) {
                         switch (type) {
                             case "display":
@@ -262,7 +344,13 @@
             $.ajax({method: 'delete', url: ""}).done(function () {
                 window.location.assign('/');
             })
-        })
+        });
+        $('a[data-toggle="tab"]').on('shown.bs.tab', function (event) {
+            if ($(event.target).text() === 'Events'){
+                $('#reboots').attr("style", "");
+                eventsTable.columns.adjust().draw();
+            }
+        });
     });
 </script>
 {% end %}

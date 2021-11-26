@@ -5,10 +5,9 @@ re_1mb_image = re.compile(r'homething\.app[12]__(.*)\.ota')
 re_image = re.compile(r'homething__(.*)\.ota')
 
 
-class Updater:
-    def __init__(self, updates_dir, mqtt_handler):
+class UpdateManager:
+    def __init__(self, updates_dir):
         self.updates_dir = updates_dir
-        self.mqtt_handler = mqtt_handler
 
     def get_versions(self, device):
         flash_type = ''
@@ -29,7 +28,3 @@ class Updater:
         versions = list(versions)
         versions.sort()
         return versions
-
-    async def update(self, device, version):
-        topic = f'homething/{device.uuid}/sw/update'
-        await self.mqtt_handler.send_message(topic, version)

@@ -1,12 +1,12 @@
 import os
 import datetime
 from tornado.web import Application, RequestHandler
-import plotly.graph_objects as go
-import plotly.io
+from tornado.websocket import WebSocketHandler
 import humanize
 from parsimonious.exceptions import IncompleteParseError
 from cbor2 import dumps
 from homething.parse import *
+from htm import notifications
 from htm import db
 from datatables import ColumnDT, DataTables
 import json
@@ -87,16 +87,16 @@ class DeviceProfilePageHandler(RequestHandler):
 
 
 class DeviceUpdateHandler(RequestHandler):
-    def initialize(self, devices, updater):
+    def initialize(self, devices, updates):
         self.devices = devices
-        self.updater = updater
+        self.updates = updates
 
     def get(self, device_id):
         device = self.devices.get_device(device_id)
         if device is None:
             self.send_error(404)
             return
-        versions = self.updater.get_versions(device)
+        versions = self.updates.get_versions(device)
         self.render("update.html", device=device, versions=versions, error=None)
 
     async def post(self, device_id):
@@ -104,7 +104,7 @@ class DeviceUpdateHandler(RequestHandler):
         if device is None:
             self.send_error(404)
             return
-        await self.updater.update(device, self.get_body_argument('version'))
+        await device.update(self.get_body_argument('version'))
         self.redirect(f'/device/{device.uuid}/')
 
 
@@ -151,8 +151,8 @@ class DevicesJsonHandler(RequestHandler):
 
     def get(self):
         device_list = {"devices": [
-            {"id": device.uuid, "uptime": device.last_uptime, "version": device.sw.version, "online": device.online,
-             "description": device.device.get("description", "")}
+            {"id": device.uuid, "uptime": device.last_uptime, "version": device.info.get('version', ''),
+             "online": device.online, "description": device.info.get("description", "")}
             for device in self.devices.get_devices()]}
 
         self.write(device_list)
@@ -184,16 +184,44 @@ class DeviceMemoryStatsHandler(RequestHandler):
         self.flush()
 
 
-def get_server(devices, updater):
+class DeviceUpdatesWebSocketHandler(WebSocketHandler):
+    def initialize(self, devices) -> None:
+        self.devices = devices
+        self.device = None
+
+    def open(self, device_id):
+        print("WebSocket opened")
+        self.device = self.devices.get_device(device_id)
+        if self.device is None:
+            self.send_error(404)
+            return
+
+        # Register for notifications
+        notifications.manager.add_device_listener(self.device, self.device_listener)
+
+    def device_listener(self, device, event, data):
+        self.write_message(JSONEncoder().encode({"event": event, "data": data}))
+
+    def on_message(self, message):
+        print(f"Message received: {message}")
+
+    def on_close(self):
+        print("WebSocket closed")
+        # Cancel notifications
+        notifications.manager.remove_device_listener(self.device, self.device_listener)
+
+
+def get_server(devices, updates):
 
     return Application([(r'/', MainPageHandler, dict(devices=devices)),
                         (r'/devices', DevicesJsonHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/', DevicePageHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/profile', DeviceProfilePageHandler, dict(devices=devices)),
-                        (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(devices=devices, updater=updater)),
+                        (r'/device/([^/]+)/update', DeviceUpdateHandler, dict(devices=devices, updater=updates)),
                         (r'/device/([^/]+)/restart', DeviceRestartHandler, dict(devices=devices)),
                         (r'/device/([^/]+)/events', DeviceEventsDatatableHandler, dict(devices=devices)),
-                        (r'/device/([^/]+)/memorystats', DeviceMemoryStatsHandler, dict(devices=devices))
+                        (r'/device/([^/]+)/memorystats', DeviceMemoryStatsHandler, dict(devices=devices)),
+                        (r'/device/([^/]+)/ws', DeviceUpdatesWebSocketHandler, dict(devices=devices))
                         ],
                        template_path=os.path.join(os.path.dirname(__file__), 'templates'),
                        static_path=os.path.join(os.path.dirname(__file__), 'static'),

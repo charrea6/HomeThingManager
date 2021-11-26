@@ -107,6 +107,7 @@ class AsyncioMqttHandler(MQTTHandler):
                         self.process_message(message)
                     except:
                         logger.error("Processing message failed!", exc_info=True)
+        self.connect()
 
     def process_message(self, message):
         topic_elements = message.topic.split('/')

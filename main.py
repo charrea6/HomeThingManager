@@ -1,12 +1,10 @@
-import logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s : %(message)s")
-
+import htm.logging
 import tornado.ioloop
 import argparse
 from htm.devices import Devices
-import htm.mqtt as mqtt
-import htm.web as web
-from htm.updates import Updater
+from htm import mqtt
+from htm import web
+from htm.updates import UpdateManager
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Web based HomeThing Manager")
@@ -25,9 +23,9 @@ if __name__ == '__main__':
     mqtt_handler = mqtt.get_handler(args.mqtt, db)
     mqtt_handler.connect()
 
-    updater = Updater(args.updates_dir, mqtt_handler)
+    updates = UpdateManager(args.updates_dir)
 
-    web_server = web.get_server(db, updater)
+    web_server = web.get_server(db, updates)
     web_server.listen(args.port, args.ip)
 
     tornado.ioloop.IOLoop.current().start()
