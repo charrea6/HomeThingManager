@@ -60,3 +60,7 @@ ds18x20:
 led:
   type: gpio_pin
   id: 7
+
+led_strip_spi:
+  type: led_strip_spi
+  id: 8

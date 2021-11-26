@@ -26,6 +26,11 @@ def decode_relay(entry):
     return f'{relay_types[relay_type]}({pin}, {level}, id{controller_id})', controller_id
 
 
+def decode_led_strip_spi(entry):
+    count = entry[1]
+    return f'led_strip_spi({count})', None
+
+
 class DecodeFactory:
     def __init__(self, name, details):
         self.name = name
@@ -53,6 +58,7 @@ class I2CDeviceFactory(DecodeFactory):
 decoders = {
     DeviceProfile_EntryType_GPIOSwitch: decode_switch,
     DeviceProfile_EntryType_Relay: decode_relay,
+    DeviceProfile_EntryType_LEDStripSPI: decode_led_strip_spi,
 }
 
 with open(os.path.join(os.path.dirname(__file__), "components.yaml")) as fp:
@@ -71,8 +77,11 @@ with open(os.path.join(os.path.dirname(__file__), "components.yaml")) as fp:
         elif component_type == 'gpio_relay':
             relay_types[details['relayType']] = name
 
+        elif component_type == 'led_strip_spi':
+            pass
+
         else:
-            raise RuntimeError(f"Unknown componnet type {component_type} for {name}")
+            raise RuntimeError(f"Unknown component type {component_type} for {name}")
 
 
 def decode(profile):
