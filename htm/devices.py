@@ -36,6 +36,7 @@ class Device:
         self.diag = {}
         self.task_stats = []
         self.profile = ''
+        self.status = ''
         self.entries = []
         self.current_free = None
         self.current_min_free = None
@@ -105,6 +106,10 @@ class Device:
             topics_data = cbor2.loads(value)
             self.process_topics(topics_data)
             notifications.manager.send_notification(self, "topics", self.entries)
+
+        elif path == 'status':
+            self.status = value.decode()
+            notifications.manager.send_notification(self, "status", self.status)
 
     def _process_diag(self, diag):
         new_uptime = diag.get("uptime", 0)

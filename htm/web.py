@@ -190,7 +190,6 @@ class DeviceUpdatesWebSocketHandler(WebSocketHandler):
         self.device = None
 
     def open(self, device_id):
-        print("WebSocket opened")
         self.device = self.devices.get_device(device_id)
         if self.device is None:
             self.send_error(404)
@@ -206,7 +205,6 @@ class DeviceUpdatesWebSocketHandler(WebSocketHandler):
         print(f"Message received: {message}")
 
     def on_close(self):
-        print("WebSocket closed")
         # Cancel notifications
         notifications.manager.remove_device_listener(self.device, self.device_listener)
 

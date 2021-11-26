@@ -82,6 +82,10 @@
             </td>
         </tr>
         <tr>
+            <th>Status</th>
+            <td id="status">{{ device.status }}</td>
+        </tr>
+        <tr>
             <th>Profile</th>
             <td>
                 <pre id="profile">{{ device.profile }}</pre>
@@ -256,9 +260,11 @@
     }
 
     function processInfo(info) {
-
+        $("#version").text(info.version);
+        $("#description").text(info.description);
+        $("#ip").text(info.ip);
+        $("#capabilities").text(info.capabilities);
     }
-
 
     function processWSMessage(evt) {
         let json = JSON.parse(evt.data);
@@ -277,6 +283,9 @@
                 } else {
                     $("#online").removeClass("invisible").addClass("visible");
                 }
+                break;
+            case 'status':
+                $("#status").text(data);
                 break;
             case 'topic':
                 $("#topic_" + data.path.replace("/", "_")).text(data.value);
