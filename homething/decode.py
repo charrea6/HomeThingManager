@@ -31,6 +31,13 @@ def decode_led_strip_spi(entry):
     return f'led_strip_spi({count})', None
 
 
+def decode_draytonscr(entry):
+    pin = entry[1]
+    on_sequence = entry[2]
+    off_sequence = entry[3]
+    return f'draytonscr({pin}, "{on_sequence}", "{off_sequence}")', None
+
+
 class DecodeFactory:
     def __init__(self, name, details):
         self.name = name
@@ -59,6 +66,7 @@ decoders = {
     DeviceProfile_EntryType_GPIOSwitch: decode_switch,
     DeviceProfile_EntryType_Relay: decode_relay,
     DeviceProfile_EntryType_LEDStripSPI: decode_led_strip_spi,
+    DeviceProfile_EntryType_DraytonSCR: decode_draytonscr
 }
 
 with open(os.path.join(os.path.dirname(__file__), "components.yaml")) as fp:
@@ -77,7 +85,7 @@ with open(os.path.join(os.path.dirname(__file__), "components.yaml")) as fp:
         elif component_type == 'gpio_relay':
             relay_types[details['relayType']] = name
 
-        elif component_type == 'led_strip_spi':
+        elif component_type in ('led_strip_spi', 'draytonscr'):
             pass
 
         else:

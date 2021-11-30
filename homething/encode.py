@@ -140,6 +140,15 @@ class LEDStripSPI(Component):
         profile.append(entry)
 
 
+class DraytonSCR(Component):
+    TYPE_NAME = "draytonscr"
+
+    def process_component(self, profile):
+        self.check_arg_count(3)
+        entry = [DeviceProfile_EntryType_DraytonSCR, self.get_pin(0), self.get_arg(1, str).arg, self.get_arg(2, str).arg]
+        profile.append(entry)
+
+
 class ID:
     def __init__(self, name):
         self.name = name
@@ -155,15 +164,14 @@ class Arg:
 
 
 class ComponentFactory:
-    def __init__(self, name, details):
+    def __init__(self, name, component_id):
         self.name = name
-        self.component_id = details['id']
+        self.component_id = component_id
 
 
 class GPIOSwitchFactory(ComponentFactory):
     def __init__(self, name, details):
-        details['id'] = DeviceProfile_EntryType_GPIOSwitch
-        super().__init__(name, details)
+        super().__init__(name, DeviceProfile_EntryType_GPIOSwitch)
         self.switch_type = details['switchType']
 
     def __call__(self, pos, args):
@@ -172,8 +180,7 @@ class GPIOSwitchFactory(ComponentFactory):
 
 class GPIORelayFactory(ComponentFactory):
     def __init__(self, name, details):
-        details['id'] = DeviceProfile_EntryType_Relay
-        super().__init__(name, details)
+        super().__init__(name, DeviceProfile_EntryType_Relay)
         self.relay_type = details['relayType']
 
     def __call__(self, pos, args):
@@ -181,13 +188,16 @@ class GPIORelayFactory(ComponentFactory):
 
 
 class GPIOPinComponentFactory(ComponentFactory):
+    def __init__(self, name, details):
+        super().__init__(name, details['id'])
+
     def __call__(self, pos, args):
         return GPIOPinComponent(self.name, self.component_id, pos, args)
 
 
 class I2CDeviceFactory(ComponentFactory):
     def __init__(self, name, details):
-        super().__init__(name, details)
+        super().__init__(name, details['id'])
         self.addr = details['addr']
 
     def __call__(self, pos, args):
@@ -196,11 +206,18 @@ class I2CDeviceFactory(ComponentFactory):
 
 class LEDStripSPIFactory(ComponentFactory):
     def __init__(self, name, details):
-        details['id'] = DeviceProfile_EntryType_LEDStripSPI
-        super().__init__(name, details)
+        super().__init__(name, DeviceProfile_EntryType_LEDStripSPI)
 
     def __call__(self, pos, args):
         return LEDStripSPI(pos, args)
+
+
+class DraytonSCRFactory(ComponentFactory):
+    def __init__(self, name, details):
+        super().__init__(name, DeviceProfile_EntryType_DraytonSCR)
+
+    def __call__(self, pos, args):
+        return DraytonSCR(pos, args)
 
 
 factories = {
@@ -209,6 +226,7 @@ factories = {
     'gpio_switch': GPIOSwitchFactory,
     'gpio_relay': GPIORelayFactory,
     'led_strip_spi': LEDStripSPIFactory,
+    'draytonscr': DraytonSCRFactory
 }
 
 components = {}

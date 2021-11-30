@@ -64,3 +64,7 @@ led:
 led_strip_spi:
   type: led_strip_spi
   id: 8
+
+draytonscr:
+  type: draytonscr
+  id: 9

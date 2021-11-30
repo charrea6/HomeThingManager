@@ -6,6 +6,7 @@ DeviceProfile_EntryType_SI7021     = 3
 DeviceProfile_EntryType_TSL2561    = 4
 DeviceProfile_EntryType_BME280     = 5
 DeviceProfile_EntryType_LEDStripSPI= 8
+DeviceProfile_EntryType_DraytonSCR = 9
 
 DeviceProfile_SwitchType_Toggle    = 0
 DeviceProfile_SwitchType_OnOff     = 1
