@@ -30,6 +30,9 @@ class TopicInfo:
     def list_from_dict(topics_dict) -> List[TopicInfo]:
         return [TopicInfo(pub_path, message_type) for pub_path, message_type in topics_dict.items()]
 
+    def _to_json(self):
+        return dict(path=self.path, message_type=self.message_type)
+
 
 @dataclass(frozen=True)
 class TopicEntry:
@@ -39,3 +42,6 @@ class TopicEntry:
 
     def __hash__(self):
         return hash((self.path,) + tuple(self.pubs) + tuple(self.subs))
+
+    def _to_json(self):
+        return dict(path=self.path, pubs=self.pubs, subs=self.subs)

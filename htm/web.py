@@ -17,6 +17,8 @@ class JSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, datetime.datetime):
             return str(o)
+        if hasattr(o, '_to_json'):
+            return o._to_json()
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, o)
 
