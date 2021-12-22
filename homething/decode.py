@@ -35,7 +35,8 @@ def decode_draytonscr(entry):
     pin = entry[1]
     on_sequence = entry[2]
     off_sequence = entry[3]
-    return f'draytonscr({pin}, "{on_sequence}", "{off_sequence}")', None
+    controller_id = entry[4]
+    return f'draytonscr({pin}, "{on_sequence}", "{off_sequence}", id{controller_id})', controller_id
 
 
 class DecodeFactory:

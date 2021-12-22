@@ -144,8 +144,16 @@ class DraytonSCR(Component):
     TYPE_NAME = "draytonscr"
 
     def process_component(self, profile):
-        self.check_arg_count(3)
-        entry = [DeviceProfile_EntryType_DraytonSCR, self.get_pin(0), self.get_arg(1, str).arg, self.get_arg(2, str).arg]
+        self.check_arg_count(4)
+        entry = [DeviceProfile_EntryType_DraytonSCR, self.get_pin(0),
+                 self.get_arg(1, str).arg, self.get_arg(2, str).arg]
+        id = self.get_arg(3, (ID, Component))
+        if isinstance(id.arg, ID):
+            entry.append(self.get_id_value(id))
+        else:
+            entry.append(len(profile) - 1)
+            id.arg.process(self.id_table, profile)
+
         profile.append(entry)
 
 
