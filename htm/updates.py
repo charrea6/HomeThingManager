@@ -12,7 +12,7 @@ class UpdateManager:
 
     def get_versions(self, device):
         flash_type = ''
-        for entry in device.sw.capabilities.split(','):
+        for entry in device.info['capabilities'].split(','):
             if entry.startswith('flash'):
                 flash_type = entry
                 break
